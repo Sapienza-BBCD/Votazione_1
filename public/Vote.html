@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Votazione Evento</title>
+</head>
+<body>
+
+<h2>Vota il tuo progetto preferito</h2>
+
+<select id="choice">
+  <option value="A">Progetto A</option>
+  <option value="B">Progetto B</option>
+  <option value="C">Progetto C</option>
+</select>
+<br><br>
+
+<button onclick="vote()">Vota</button>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const token = params.get("token");
+
+function vote(){
+  fetch("/vote",{
+    method:"POST",
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      token: token,
+      choice: document.getElementById("choice").value
+    })
+  })
+  .then(r=>r.json())
+  .then(data=>{
+    if(data.success) alert("Voto registrato!");
+    else alert(data.error);
+  });
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,17 @@
+<h2>Risultati votazione</h2>
+<div id="results"></div>
+
+<script>
+function load(){
+  fetch("/results")
+  .then(r=>r.json())
+  .then(data=>{
+    let html = "";
+    data.forEach(r=>{
+      html+= r.choice + " : " + r.votes + "<br>";
+    });
+    document.getElementById("results").innerHTML = html;
+  });
+}
+setInterval(load,2000); // aggiorna ogni 2 secondi
+</script>
