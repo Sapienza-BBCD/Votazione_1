@@ -4,7 +4,7 @@ const { v4: uuidv4 } = require("uuid");
 
 const db = new sqlite3.Database("votes.db");
 
-const PARTICIPANTI = 100; // numero partecipanti
+const PARTICIPANTI = 300; // numero partecipanti
 
 db.serialize(()=>{
 
