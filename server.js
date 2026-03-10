@@ -1,6 +1,7 @@
 const express = require("express");
 const sqlite3 = require("sqlite3").verbose();
 const cors = require("cors");
+const PORT = process.env.PORT || 3000;
 
 const app = express();
 app.use(express.static("public"));
@@ -49,4 +50,4 @@ app.get("/results",(req,res)=>{
   });
 });
 
-app.listen(3000,()=>console.log("Server attivo su porta 3000"));
+app.listen(PORT, ()=>console.log(`Server attivo su porta ${PORT}`));
