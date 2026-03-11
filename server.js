@@ -50,12 +50,13 @@ db.serialize(() => {
 });
 
 // --- ROTTE ---
+
 // "/" → vote.html
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "vote.html"));
 });
 
-// POST /vote → registra voto
+// POST /vote → registra voto multiplo
 app.post("/vote", (req, res) => {
   const { token, choice } = req.body;
 
@@ -64,11 +65,21 @@ app.post("/vote", (req, res) => {
     if (!row) return res.json({ error: "Token non valido" });
     if (row.used === 1) return res.json({ error: "Token già usato" });
 
-    db.run("INSERT INTO votes(token, choice) VALUES(?,?)", [token, choice], (err) => {
+    // Controlla e separa scelte multiple
+    const choices = choice.split(",").map(c => c.trim()).slice(0, 2); // massimo 2
+
+    let placeholders = choices.map(() => "(?, ?)").join(", ");
+    let values = [];
+    choices.forEach(c => values.push(token, c));
+
+    db.run(`INSERT INTO votes(token, choice) VALUES ${placeholders}`, values, (err) => {
       if (err) return res.json({ error: "Errore server" });
 
-      db.run("UPDATE tokens SET used=1 WHERE token=?", [token]);
-      res.json({ success: true });
+      // Aggiorna token come usato
+      db.run("UPDATE tokens SET used=1 WHERE token=?", [token], (err) => {
+        if (err) return res.json({ error: "Errore server" });
+        res.json({ success: true });
+      });
     });
   });
 });
