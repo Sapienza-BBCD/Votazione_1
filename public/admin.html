@@ -1,17 +1,64 @@
-<h2>Risultati votazione</h2>
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<meta charset="UTF-8">
+<title>Risultati votazione</title>
+
+<style>
+
+body{
+font-family: Arial;
+background:#f4f6f8;
+text-align:center;
+margin-top:80px;
+}
+
+h1{
+font-size:40px;
+margin-bottom:40px;
+}
+
+.result{
+font-size:28px;
+margin:15px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>Risultati votazione</h1>
+
 <div id="results"></div>
 
 <script>
-function load(){
-  fetch("/results")
-  .then(r=>r.json())
-  .then(data=>{
-    let html = "";
-    data.forEach(r=>{
-      html+= r.choice + " : " + r.votes + "<br>";
-    });
-    document.getElementById("results").innerHTML = html;
-  });
+
+async function loadResults(){
+
+const res = await fetch("/results");
+const data = await res.json();
+
+let html = "";
+
+data.forEach(r=>{
+html += `<div class="result">${r.choice}: ${r.votes} voti</div>`;
+});
+
+document.getElementById("results").innerHTML = html;
+
 }
-setInterval(load,2000); // aggiorna ogni 2 secondi
+
+loadResults();
+
+// aggiorna automaticamente ogni 3 secondi
+setInterval(loadResults,3000);
+
 </script>
+
+</body>
+
+</html>
