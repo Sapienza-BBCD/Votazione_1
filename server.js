@@ -2,21 +2,25 @@ const express = require("express");
 const sqlite3 = require("sqlite3").verbose();
 const cors = require("cors");
 const { v4: uuidv4 } = require("uuid");
-const QRCode = require("qrcode");
+const path = require("path");
 
 const PORT = process.env.PORT || 3000;
 
 const app = express();
+
+// Cartella statica
 app.use(express.static("public"));
 app.use(express.json());
 app.use(cors());
 
 const db = new sqlite3.Database("votes.db");
 
+// Numero di token da generare
 const PARTICIPANTI = 300;
 
 db.serialize(() => {
 
+  // Crea tabelle se non esistono
   db.run(`
     CREATE TABLE IF NOT EXISTS votes(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,125 +37,64 @@ db.serialize(() => {
     )
   `);
 
+  // Genera token solo se la tabella è vuota
   db.get("SELECT COUNT(*) AS count FROM tokens", (err, row) => {
-
-    if (err) {
-      console.log(err);
-      return;
-    }
-
+    if (err) return console.error(err);
     if (row.count === 0) {
-
       for (let i = 0; i < PARTICIPANTI; i++) {
-
         const token = uuidv4();
-
-        db.run(
-          "INSERT INTO tokens(token) VALUES(?)",
-          [token]
-        );
-
+        db.run("INSERT INTO tokens(token) VALUES(?)", [token]);
       }
-
-      console.log(`${PARTICIPANTI} token generati sul server`);
-
+      console.log(`${PARTICIPANTI} token generati sul server!`);
     }
-
   });
-
 });
 
-app.post("/vote", (req, res) => {
+// --- ROTTE ---
 
+// "/" → mostra vote.html (così i QR continuano a funzionare)
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "vote.html"));
+});
+
+// Votazione con token
+app.post("/vote", (req, res) => {
   const { token, choice } = req.body;
 
-  db.get(
-    "SELECT * FROM tokens WHERE token=?",
-    [token],
-    (err, row) => {
+  db.get("SELECT * FROM tokens WHERE token=?", [token], (err, row) => {
+    if (err) return res.json({ error: "Errore server" });
+    if (!row) return res.json({ error: "Token non valido" });
+    if (row.used === 1) return res.json({ error: "Token già usato" });
 
-      if (err) return res.json({ error: "Errore server" });
+    db.run("INSERT INTO votes(token, choice) VALUES(?,?)", [token, choice]);
+    db.run("UPDATE tokens SET used=1 WHERE token=?", [token]);
 
-      if (!row)
-        return res.json({ error: "Token non valido" });
-
-      if (row.used === 1)
-        return res.json({ error: "Token già usato" });
-
-      db.run(
-        "INSERT INTO votes(token, choice) VALUES(?,?)",
-        [token, choice]
-      );
-
-      db.run(
-        "UPDATE tokens SET used=1 WHERE token=?",
-        [token]
-      );
-
-      res.json({ success: true });
-
-    }
-  );
-
+    res.json({ success: true });
+  });
 });
 
+// Controllo risultati
 app.get("/results", (req, res) => {
-
-  db.all(
-    "SELECT choice, COUNT(*) as votes FROM votes GROUP BY choice",
-    (err, rows) => {
-
-      if (err) return res.json({ error: "Errore server" });
-
-      res.json(rows);
-
-    }
-  );
-
-});
-app.get("/tokens", (req, res) => {
-
-  db.all("SELECT token FROM tokens", (err, rows) => {
-
-    if (err) return res.json({error:"errore server"});
-
+  db.all("SELECT choice, COUNT(*) as votes FROM votes GROUP BY choice", (err, rows) => {
+    if (err) return res.json({ error: "Errore server" });
     res.json(rows);
-
   });
-
 });
 
-app.get("/qrcodes", (req, res) => {
-
-  db.all("SELECT token FROM tokens", async (err, rows) => {
-
-    if (err) return res.send("Errore server");
-
-    let html = "<h1>QR Code votazione</h1>";
-
-    for (let i = 0; i < rows.length; i++) {
-
-      const token = rows[i].token;
-
-      const url = `https://votazione-1.onrender.com/vote.html?token=${token}`;
-
-      const qr = await QRCode.toDataURL(url);
-
-      html += `
-        <div style="display:inline-block;text-align:center;margin:10px">
-          <img src="${qr}" width="150"><br>
-          ${i+1}
-        </div>
-      `;
-
-    }
-
-    res.send(html);
-
+// Lista dei token (opzionale per debug/admin)
+app.get("/tokens", (req, res) => {
+  db.all("SELECT token FROM tokens", (err, rows) => {
+    if (err) return res.json({ error: "Errore server" });
+    res.json(rows);
   });
-
 });
 
+// Admin.html (i risultati grafici)
+app.get("/admin", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "admin.html"));
+});
+
+// Avvio server
 app.listen(PORT, () => {
   console.log(`Server attivo su porta ${PORT}`);
 });
