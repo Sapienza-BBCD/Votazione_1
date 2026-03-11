@@ -12,17 +12,47 @@ body{
 font-family: Arial;
 background:#f4f6f8;
 text-align:center;
-margin-top:80px;
+margin:0;
 }
 
 h1{
-font-size:40px;
+font-size:42px;
+margin-top:40px;
 margin-bottom:40px;
 }
 
-.result{
-font-size:28px;
-margin:15px;
+.container{
+width:60%;
+margin:auto;
+}
+
+.row{
+margin:25px 0;
+text-align:left;
+}
+
+.label{
+font-size:24px;
+margin-bottom:5px;
+}
+
+.barBackground{
+width:100%;
+background:#ddd;
+border-radius:10px;
+overflow:hidden;
+}
+
+.bar{
+height:35px;
+background:#007BFF;
+width:0%;
+color:white;
+display:flex;
+align-items:center;
+justify-content:flex-end;
+padding-right:10px;
+font-weight:bold;
 }
 
 </style>
@@ -33,7 +63,7 @@ margin:15px;
 
 <h1>Risultati votazione</h1>
 
-<div id="results"></div>
+<div class="container" id="results"></div>
 
 <script>
 
@@ -42,10 +72,36 @@ async function loadResults(){
 const res = await fetch("/results");
 const data = await res.json();
 
+let maxVotes = 0;
+
+data.forEach(p=>{
+if(p.votes > maxVotes){
+maxVotes = p.votes;
+}
+});
+
 let html = "";
 
-data.forEach(r=>{
-html += `<div class="result">${r.choice}: ${r.votes} voti</div>`;
+data.forEach(p=>{
+
+let percent = maxVotes ? (p.votes/maxVotes)*100 : 0;
+
+html += `
+<div class="row">
+
+<div class="label">
+${p.choice} — ${p.votes} voti
+</div>
+
+<div class="barBackground">
+<div class="bar" style="width:${percent}%">
+${p.votes}
+</div>
+</div>
+
+</div>
+`;
+
 });
 
 document.getElementById("results").innerHTML = html;
@@ -54,7 +110,6 @@ document.getElementById("results").innerHTML = html;
 
 loadResults();
 
-// aggiorna automaticamente ogni 3 secondi
 setInterval(loadResults,3000);
 
 </script>
