@@ -3,9 +3,6 @@ const sqlite3 = require("sqlite3").verbose();
 const cors = require("cors");
 const { v4: uuidv4 } = require("uuid");
 const path = require("path");
-const archiver = require("archiver");
-const QRCode = require("qrcode");
-const PDFDocument = require("pdfkit");
 
 const PORT = process.env.PORT || 3000;
 
@@ -21,9 +18,9 @@ const db = new sqlite3.Database("votes.db");
 // Numero di token da generare
 const PARTICIPANTI = 300;
 
+// --- Creazione tabelle e token ---
 db.serialize(() => {
 
-  // Crea tabelle se non esistono
   db.run(`
     CREATE TABLE IF NOT EXISTS votes(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,12 +52,12 @@ db.serialize(() => {
 
 // --- ROTTE ---
 
-// "/" → mostra vote.html (così i QR continuano a funzionare)
+// "/" → mostra vote.html
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "vote.html"));
 });
 
-// Votazione con token
+// Votazione con token (funziona anche con più progetti per token)
 app.post("/vote", (req, res) => {
   const { token, choice } = req.body;
 
@@ -69,14 +66,19 @@ app.post("/vote", (req, res) => {
     if (!row) return res.json({ error: "Token non valido" });
     if (row.used === 1) return res.json({ error: "Token già usato" });
 
-    db.run("INSERT INTO votes(token, choice) VALUES(?,?)", [token, choice]);
-    db.run("UPDATE tokens SET used=1 WHERE token=?", [token]);
+    // Inserisce il voto per il progetto selezionato
+    db.run("INSERT INTO votes(token, choice) VALUES(?,?)", [token, choice], (err) => {
+      if (err) return res.json({ error: "Errore server" });
 
-    res.json({ success: true });
+      // Segna il token come usato
+      db.run("UPDATE tokens SET used=1 WHERE token=?", [token]);
+
+      res.json({ success: true });
+    });
   });
 });
 
-// Controllo risultati
+// Lista risultati
 app.get("/results", (req, res) => {
   db.all("SELECT choice, COUNT(*) as votes FROM votes GROUP BY choice", (err, rows) => {
     if (err) return res.json({ error: "Errore server" });
@@ -84,7 +86,7 @@ app.get("/results", (req, res) => {
   });
 });
 
-// Lista dei token (opzionale per debug/admin)
+// Lista token (solo per debug/admin)
 app.get("/tokens", (req, res) => {
   db.all("SELECT token FROM tokens", (err, rows) => {
     if (err) return res.json({ error: "Errore server" });
@@ -92,102 +94,9 @@ app.get("/tokens", (req, res) => {
   });
 });
 
-// Admin.html (i risultati grafici)
+// Admin.html
 app.get("/admin", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin.html"));
-});
-
-// Scarica tutti i QR in ZIP
-app.get("/download-qrs", async (req, res) => {
-
-  res.attachment("qrcodes.zip");
-
-  const archive = archiver("zip");
-  archive.pipe(res);
-
-  db.all("SELECT token FROM tokens", async (err, rows) => {
-
-    if (err) {
-      res.status(500).send("Errore server");
-      return;
-    }
-
-    for (let i = 0; i < rows.length; i++) {
-
-      const token = rows[i].token;
-
-      const url = `https://votazione-1.onrender.com/vote.html?token=${token}`;
-
-      const qr = await QRCode.toBuffer(url);
-
-      archive.append(qr, { name: `qr-${i+1}.png` });
-
-    }
-
-    archive.finalize();
-
-  });
-
-});
-
-app.get("/print-qrs", async (req, res) => {
-
-  const doc = new PDFDocument({ margin: 30 });
-
-  res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", "inline; filename=qrcodes.pdf");
-
-  doc.pipe(res);
-
-  db.all("SELECT token FROM tokens", async (err, rows) => {
-
-    if (err) {
-      doc.text("Errore server");
-      doc.end();
-      return;
-    }
-
-    const perRow = 3;
-    const size = 150;
-
-    let x = 50;
-    let y = 50;
-    let count = 0;
-
-    for (let i = 0; i < rows.length; i++) {
-
-      const token = rows[i].token;
-      const url = `https://votazione-1.onrender.com/vote.html?token=${token}`;
-
-      const qr = await QRCode.toDataURL(url);
-
-      const base64 = qr.replace(/^data:image\/png;base64,/, "");
-      const img = Buffer.from(base64, "base64");
-
-      doc.image(img, x, y, { width: size });
-
-      doc.fontSize(10).text(`QR ${i+1}`, x, y + size + 5);
-
-      count++;
-      x += 180;
-
-      if (count % perRow === 0) {
-        x = 50;
-        y += 200;
-      }
-
-      if (y > 700) {
-        doc.addPage();
-        x = 50;
-        y = 50;
-      }
-
-    }
-
-    doc.end();
-
-  });
-
 });
 
 // Avvio server
