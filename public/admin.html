@@ -1,119 +1,103 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="it">
 <head>
-
 <meta charset="UTF-8">
-<title>Risultati votazione</title>
-
+<title>Risultati Votazione - LAB2GO</title>
 <style>
-
-body{
-font-family: Arial;
-background:#f4f6f8;
-text-align:center;
-margin:0;
+body {
+  font-family: Arial, sans-serif;
+  text-align: center;
+  background: #f4f6f8;
+  margin: 0;
+  padding: 20px;
 }
 
-h1{
-font-size:42px;
-margin-top:40px;
-margin-bottom:40px;
+h1 {
+  font-size: 36px;
+  margin-bottom: 30px;
 }
 
-.container{
-width:60%;
-margin:auto;
+.project {
+  margin: 20px auto;
+  width: 60%;
+  background: white;
+  padding: 15px;
+  border-radius: 10px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
-.row{
-margin:25px 0;
-text-align:left;
+.project-name {
+  font-size: 20px;
+  margin-bottom: 10px;
 }
 
-.label{
-font-size:24px;
-margin-bottom:5px;
+.bar-container {
+  background: #ddd;
+  border-radius: 10px;
+  overflow: hidden;
+  height: 30px;
 }
 
-.barBackground{
-width:100%;
-background:#ddd;
-border-radius:10px;
-overflow:hidden;
+.bar {
+  background: #007BFF;
+  height: 100%;
+  width: 0;
+  text-align: right;
+  color: white;
+  line-height: 30px;
+  padding-right: 10px;
+  font-weight: bold;
+  transition: width 1s;
 }
-
-.bar{
-height:35px;
-background:#007BFF;
-width:0%;
-color:white;
-display:flex;
-align-items:center;
-justify-content:flex-end;
-padding-right:10px;
-font-weight:bold;
-}
-
 </style>
-
 </head>
-
 <body>
 
-<h1>Risultati votazione</h1>
+<h1>Risultati Votazione - LAB2GO</h1>
 
-<div class="container" id="results"></div>
+<div id="results"></div>
 
 <script>
+// Prende i risultati dal server
+async function loadResults() {
+  const res = await fetch("/results");
+  const data = await res.json();
 
-async function loadResults(){
+  const container = document.getElementById("results");
+  container.innerHTML = "";
 
-const res = await fetch("/results");
-const data = await res.json();
+  // Trova il numero massimo di voti per scala della barra
+  let maxVotes = 0;
+  data.forEach(d => { if(d.votes > maxVotes) maxVotes = d.votes; });
 
-let maxVotes = 0;
+  data.forEach((d) => {
+    const div = document.createElement("div");
+    div.className = "project";
 
-data.forEach(p=>{
-if(p.votes > maxVotes){
-maxVotes = p.votes;
-}
-});
+    const name = document.createElement("div");
+    name.className = "project-name";
+    name.textContent = `${d.choice}: ${d.votes} voti`;
+    div.appendChild(name);
 
-let html = "";
+    const barContainer = document.createElement("div");
+    barContainer.className = "bar-container";
 
-data.forEach(p=>{
+    const bar = document.createElement("div");
+    bar.className = "bar";
+    // Percentuale proporzionale al massimo dei voti
+    const percent = maxVotes > 0 ? (d.votes / maxVotes) * 100 : 0;
+    bar.style.width = percent + "%";
+    bar.textContent = d.votes > 0 ? d.votes : "";
+    barContainer.appendChild(bar);
 
-let percent = maxVotes ? (p.votes/maxVotes)*100 : 0;
+    div.appendChild(barContainer);
 
-html += `
-<div class="row">
-
-<div class="label">
-${p.choice} — ${p.votes} voti
-</div>
-
-<div class="barBackground">
-<div class="bar" style="width:${percent}%">
-${p.votes}
-</div>
-</div>
-
-</div>
-`;
-
-});
-
-document.getElementById("results").innerHTML = html;
-
+    container.appendChild(div);
+  });
 }
 
 loadResults();
-
-setInterval(loadResults,3000);
-
 </script>
 
 </body>
-
 </html>
