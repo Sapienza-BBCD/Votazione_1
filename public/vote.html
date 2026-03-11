@@ -1,40 +1,148 @@
 <!DOCTYPE html>
-<html>
+<html lang="it">
 <head>
-<title>Votazione Evento</title>
+<meta charset="UTF-8">
+<title>Vota il progetto - LAB2GO</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f7f7f7;
+    text-align: center;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: #fff;
+    border-bottom: 2px solid #ccc;
+  }
+
+  header img {
+    height: 50px;
+  }
+
+  h1 {
+    margin: 40px 0 10px 0;
+    font-size: 2em;
+    color: #333;
+  }
+
+  .info {
+    font-size: 0.95em;
+    color: #555;
+    margin-bottom: 30px;
+  }
+
+  .projects {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+    max-width: 800px;
+    margin: auto;
+  }
+
+  .project-btn {
+    padding: 20px 30px;
+    font-size: 1em;
+    border: 2px solid #4CAF50;
+    border-radius: 10px;
+    cursor: pointer;
+    background-color: #fff;
+    transition: all 0.2s;
+    min-width: 180px;
+  }
+
+  .project-btn.selected {
+    background-color: #4CAF50;
+    color: white;
+  }
+
+  button#submitVote {
+    padding: 15px 40px;
+    font-size: 1.1em;
+    margin-top: 30px;
+    cursor: pointer;
+    background-color: #2196F3;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+  }
+
+  button#submitVote:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }
+
+</style>
 </head>
 <body>
 
-<h2>Vota il tuo progetto preferito</h2>
+<header>
+  <img src="logo1.png" alt="Logo 1">
+  <img src="logo2.png" alt="Logo 2">
+</header>
 
-<select id="choice">
-  <option value="A">Progetto A</option>
-  <option value="B">Progetto B</option>
-  <option value="C">Progetto C</option>
-</select>
-<br><br>
+<h1>Vota il progetto preferito - LAB2GO</h1>
 
-<button onclick="vote()">Vota</button>
+<div class="info">
+  Il QR code è monouso e una volta inviato il voto non è possibile modificare la scelta.  
+  Seleziona **massimo due progetti**.
+</div>
+
+<div class="projects" id="projectsContainer">
+  <!-- Bottoni dei progetti generati via JS -->
+</div>
+
+<button id="submitVote" disabled>Invia voto</button>
 
 <script>
-const params = new URLSearchParams(window.location.search);
-const token = params.get("token");
+const progetti = ["Progetto A","Progetto B","Progetto C","Progetto D"]; // sostituisci con i tuoi
+const container = document.getElementById("projectsContainer");
+let selected = [];
 
-function vote(){
-  fetch("/vote",{
-    method:"POST",
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({
-      token: token,
-      choice: document.getElementById("choice").value
-    })
-  })
-  .then(r=>r.json())
-  .then(data=>{
-    if(data.success) alert("Voto registrato!");
-    else alert(data.error);
+// Genera bottoni dei progetti
+progetti.forEach(p => {
+  const btn = document.createElement("button");
+  btn.className = "project-btn";
+  btn.textContent = p;
+  btn.addEventListener("click", () => {
+    if (btn.classList.contains("selected")) {
+      btn.classList.remove("selected");
+      selected = selected.filter(x => x !== p);
+    } else {
+      if (selected.length < 2) {
+        btn.classList.add("selected");
+        selected.push(p);
+      }
+    }
+    document.getElementById("submitVote").disabled = selected.length === 0;
   });
-}
+  container.appendChild(btn);
+});
+
+// Invia voto al server
+document.getElementById("submitVote").addEventListener("click", async () => {
+  const token = new URLSearchParams(window.location.search).get("token");
+  if (!token) { alert("Token mancante!"); return; }
+
+  for (const choice of selected) {
+    const res = await fetch("/vote", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({token, choice})
+    });
+    const data = await res.json();
+    if (data.error) { alert(data.error); return; }
+  }
+
+  alert("Voto inviato correttamente!");
+  window.location.reload();
+});
 </script>
 
 </body>
