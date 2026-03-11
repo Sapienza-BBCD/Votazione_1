@@ -2,6 +2,7 @@ const express = require("express");
 const sqlite3 = require("sqlite3").verbose();
 const cors = require("cors");
 const { v4: uuidv4 } = require("uuid");
+const QRCode = require("qrcode");
 
 const PORT = process.env.PORT || 3000;
 
@@ -119,6 +120,38 @@ app.get("/tokens", (req, res) => {
   });
 
 });
+
+app.get("/qrcodes", (req, res) => {
+
+  db.all("SELECT token FROM tokens", async (err, rows) => {
+
+    if (err) return res.send("Errore server");
+
+    let html = "<h1>QR Code votazione</h1>";
+
+    for (let i = 0; i < rows.length; i++) {
+
+      const token = rows[i].token;
+
+      const url = `https://votazione-1.onrender.com/vote.html?token=${token}`;
+
+      const qr = await QRCode.toDataURL(url);
+
+      html += `
+        <div style="display:inline-block;text-align:center;margin:10px">
+          <img src="${qr}" width="150"><br>
+          ${i+1}
+        </div>
+      `;
+
+    }
+
+    res.send(html);
+
+  });
+
+});
+
 app.listen(PORT, () => {
   console.log(`Server attivo su porta ${PORT}`);
 });
