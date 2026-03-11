@@ -1,148 +1,188 @@
 <!DOCTYPE html>
-<html lang="it">
+<html>
+
 <head>
+
 <meta charset="UTF-8">
-<title>Vota il progetto - LAB2GO</title>
+<title>Vota il progetto preferito - LAB2GO</title>
+
 <style>
-  body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    background-color: #f7f7f7;
-    text-align: center;
-  }
 
-  header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 20px;
-    background-color: #fff;
-    border-bottom: 2px solid #ccc;
-  }
+body{
+font-family: Arial;
+text-align:center;
+background:#f4f6f8;
+margin:0;
+}
 
-  header img {
-    height: 50px;
-  }
+header{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:10px 30px;
+background:white;
+box-shadow:0 2px 5px rgba(0,0,0,0.1);
+}
 
-  h1 {
-    margin: 40px 0 10px 0;
-    font-size: 2em;
-    color: #633;
-  }
+.logo{
+height:60px;
+}
 
-  .info {
-    font-size: 0.95em;
-    color: #633;
-    margin-bottom: 30px;
-  }
+.container{
+margin-top:40px;
+}
 
-  .projects {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 20px;
-    max-width: 800px;
-    margin: auto;
-  }
+h1{
+font-size:36px;
+}
 
-  .project-btn {
-    padding: 20px 30px;
-    font-size: 1em;
-    border: 2px solid #4CAF50;
-    border-radius: 10px;
-    cursor: pointer;
-    background-color: #fff;
-    transition: all 0.2s;
-    min-width: 180px;
-  }
+.info{
+background:white;
+padding:15px;
+margin:20px auto;
+width:60%;
+border-radius:10px;
+box-shadow:0 2px 5px rgba(0,0,0,0.1);
+}
 
-  .project-btn.selected {
-    background-color: #4CAF50;
-    color: white;
-  }
+table{
+margin:auto;
+border-collapse:collapse;
+background:white;
+box-shadow:0 2px 5px rgba(0,0,0,0.1);
+}
 
-  button#submitVote {
-    padding: 15px 40px;
-    font-size: 1.1em;
-    margin-top: 30px;
-    cursor: pointer;
-    background-color: #2196F3;
-    color: #fff;
-    border: none;
-    border-radius: 10px;
-  }
+td{
+padding:12px 20px;
+border-bottom:1px solid #ddd;
+}
 
-  button#submitVote:disabled {
-    background-color: #ccc;
-    cursor: not-allowed;
-  }
+button{
+margin-top:30px;
+padding:12px 30px;
+font-size:18px;
+background:#007BFF;
+color:white;
+border:none;
+border-radius:8px;
+cursor:pointer;
+}
+
+button:hover{
+background:#0056b3;
+}
 
 </style>
+
 </head>
+
 <body>
 
 <header>
-  <img src="logo1.png" alt="Logo 1">
-  <img src="logo2.png" alt="Logo 2">
+
+<img src="logo1.png" class="logo">
+<img src="logo2.png" class="logo">
+
 </header>
+
+<div class="container">
 
 <h1>Vota il progetto preferito - LAB2GO</h1>
 
 <div class="info">
-  Il QR code è monouso e una volta inviato il voto non è possibile modificare la scelta.  
-  Seleziona **massimo due progetti**.
+
+Il QR code è monouso.  
+Una volta inviato il voto **non sarà possibile modificarlo**.  
+Puoi votare **massimo 2 progetti**.
+
 </div>
 
-<div class="projects" id="projectsContainer">
-  <!-- Bottoni dei progetti generati via JS -->
-</div>
+<form id="voteForm">
 
-<button id="submitVote" disabled>Invia voto</button>
+<table>
+
+<tr>
+<td>Progetto 1</td>
+<td><input type="checkbox" name="choice" value="Progetto 1"></td>
+</tr>
+
+<tr>
+<td>Progetto 2</td>
+<td><input type="checkbox" name="choice" value="Progetto 2"></td>
+</tr>
+
+<tr>
+<td>Progetto 3</td>
+<td><input type="checkbox" name="choice" value="Progetto 3"></td>
+</tr>
+
+<tr>
+<td>Progetto 4</td>
+<td><input type="checkbox" name="choice" value="Progetto 4"></td>
+</tr>
+
+<tr>
+<td>Progetto 5</td>
+<td><input type="checkbox" name="choice" value="Progetto 5"></td>
+</tr>
+
+</table>
+
+<button type="submit">Invia voto</button>
+
+</form>
+
+</div>
 
 <script>
-const progetti = ["Progetto A","Progetto B","Progetto C","Progetto D"]; // sostituisci con i tuoi
-const container = document.getElementById("projectsContainer");
-let selected = [];
 
-// Genera bottoni dei progetti
-progetti.forEach(p => {
-  const btn = document.createElement("button");
-  btn.className = "project-btn";
-  btn.textContent = p;
-  btn.addEventListener("click", () => {
-    if (btn.classList.contains("selected")) {
-      btn.classList.remove("selected");
-      selected = selected.filter(x => x !== p);
-    } else {
-      if (selected.length < 2) {
-        btn.classList.add("selected");
-        selected.push(p);
-      }
-    }
-    document.getElementById("submitVote").disabled = selected.length === 0;
-  });
-  container.appendChild(btn);
+const urlParams = new URLSearchParams(window.location.search);
+const token = urlParams.get("token");
+
+document.getElementById("voteForm").addEventListener("submit", async function(e){
+
+e.preventDefault();
+
+let checked = document.querySelectorAll("input[name='choice']:checked");
+
+if(checked.length === 0){
+alert("Seleziona almeno un progetto");
+return;
+}
+
+if(checked.length > 2){
+alert("Puoi votare massimo 2 progetti");
+return;
+}
+
+let choices = [];
+
+checked.forEach(c=>{
+choices.push(c.value);
 });
 
-// Invia voto al server
-document.getElementById("submitVote").addEventListener("click", async () => {
-  const token = new URLSearchParams(window.location.search).get("token");
-  if (!token) { alert("Token mancante!"); return; }
-
-  for (const choice of selected) {
-    const res = await fetch("/vote", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({token, choice})
-    });
-    const data = await res.json();
-    if (data.error) { alert(data.error); return; }
-  }
-
-  alert("Voto inviato correttamente!");
-  window.location.reload();
+const res = await fetch("/vote",{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+token:token,
+choice:choices.join(", ")
+})
 });
+
+const data = await res.json();
+
+if(data.success){
+alert("Voto registrato. Grazie!");
+}
+else{
+alert(data.error);
+}
+
+});
+
 </script>
 
 </body>
