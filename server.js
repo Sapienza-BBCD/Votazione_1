@@ -108,7 +108,17 @@ app.get("/results", (req, res) => {
   );
 
 });
+app.get("/tokens", (req, res) => {
 
+  db.all("SELECT token FROM tokens", (err, rows) => {
+
+    if (err) return res.json({error:"errore server"});
+
+    res.json(rows);
+
+  });
+
+});
 app.listen(PORT, () => {
   console.log(`Server attivo su porta ${PORT}`);
 });
