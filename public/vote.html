@@ -135,54 +135,59 @@ Puoi votare **massimo 2 progetti**.
 </div>
 
 <script>
-
 const urlParams = new URLSearchParams(window.location.search);
 const token = urlParams.get("token");
 
-document.getElementById("voteForm").addEventListener("submit", async function(e){
+document.getElementById("voteForm").addEventListener("submit", async function(e) {
+  e.preventDefault();
 
-e.preventDefault();
+  // Prende solo i checkbox selezionati
+  const checked = document.querySelectorAll("input[name='choice']:checked");
 
-let checked = document.querySelectorAll("input[name='choice']:checked");
+  if (checked.length === 0) {
+    alert("Seleziona almeno un progetto");
+    return;
+  }
 
-if(checked.length === 0){
-alert("Seleziona almeno un progetto");
-return;
-}
+  if (checked.length > 2) {
+    alert("Puoi votare massimo 2 progetti");
+    return;
+  }
 
-if(checked.length > 2){
-alert("Puoi votare massimo 2 progetti");
-return;
-}
+  let errors = [];
+  let successCount = 0;
 
-let choices = [];
+  // invia un voto per ogni progetto selezionato
+  for (let c of checked) {
+    const res = await fetch("/vote", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        token: token,
+        choice: c.value
+      })
+    });
 
-checked.forEach(c=>{
-choices.push(c.value);
+    const data = await res.json();
+
+    if (data.success) {
+      successCount++;
+    } else {
+      errors.push(`${c.value}: ${data.error}`);
+    }
+  }
+
+  if (errors.length === 0) {
+    alert(`Voto registrato. Grazie! Hai votato ${successCount} progetto/i.`);
+  } else {
+    alert("Alcuni errori:\n" + errors.join("\n"));
+  }
+
+  // disabilita il form dopo il voto
+  document.getElementById("voteForm").querySelectorAll("input, button").forEach(el => el.disabled = true);
 });
-
-const res = await fetch("/vote",{
-method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-token:token,
-choice:choices.join(", ")
-})
-});
-
-const data = await res.json();
-
-if(data.success){
-alert("Voto registrato. Grazie!");
-}
-else{
-alert(data.error);
-}
-
-});
-
 </script>
 
 </body>
