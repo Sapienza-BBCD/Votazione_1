@@ -11,7 +11,7 @@ app.use(cors());
 
 const db = new sqlite3.Database("votes.db");
 
-const PARTICIPANTI = 300; // numero di token da generare
+// const PARTICIPANTI = 300; // numero di token da generare
 
 db.serialize(() => {
   // crea le tabelle
@@ -32,17 +32,17 @@ db.serialize(() => {
   `);
 
   // genera token solo se la tabella è vuota
-  db.get("SELECT COUNT(*) AS count FROM tokens", (err, row) => {
-    if (err) return console.error(err);
-    if (row.count === 0) {
-      for (let i = 0; i < PARTICIPANTI; i++) {
-        const token = uuidv4();
-        db.run("INSERT INTO tokens(token) VALUES(?)", [token]);
-      }
-      console.log(`${PARTICIPANTI} token generati sul server!`);
-    }
-  });
-});
+ // db.get("SELECT COUNT(*) AS count FROM tokens", (err, row) => {
+ //   if (err) return console.error(err);
+ //   if (row.count === 0) {
+ //     for (let i = 0; i < PARTICIPANTI; i++) {
+ //       const token = uuidv4();
+ //       db.run("INSERT INTO tokens(token) VALUES(?)", [token]);
+ //     }
+ //     console.log(`${PARTICIPANTI} token generati sul server!`);
+ //   }
+ // });
+//});
 
 // Votare con token
 app.post("/vote", (req, res) => {

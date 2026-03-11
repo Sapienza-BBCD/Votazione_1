@@ -20,7 +20,7 @@ db.serialize(()=>{
 
     db.run("INSERT INTO tokens(token) VALUES(?)",[token]);
 
-    let url = `https://nome-app.onrender.com/vote.html?token=${token}`;
+    let url = `https://votazione-1.onrender.com/vote.html?token=${token}`;
 
     QRCode.toFile(`qr-${i+1}.png`, url, (err)=>{
       if(err) console.log("Errore QR:", err);
