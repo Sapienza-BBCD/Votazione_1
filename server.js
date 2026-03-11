@@ -65,22 +65,23 @@ app.post("/vote", (req, res) => {
     if (!row) return res.json({ error: "Token non valido" });
     if (row.used === 1) return res.json({ error: "Token già usato" });
 
-    // Controlla e separa scelte multiple
-    const choices = choice.split(",").map(c => c.trim()).slice(0, 2); // massimo 2
+    const choices = Array.isArray(choice) ? choice : choice.split(",").map(c => c.trim());
 
-    let placeholders = choices.map(() => "(?, ?)").join(", ");
-    let values = [];
-    choices.forEach(c => values.push(token, c));
-
-    db.run(`INSERT INTO votes(token, choice) VALUES ${placeholders}`, values, (err) => {
-      if (err) return res.json({ error: "Errore server" });
-
-      // Aggiorna token come usato
-      db.run("UPDATE tokens SET used=1 WHERE token=?", [token], (err) => {
-        if (err) return res.json({ error: "Errore server" });
-        res.json({ success: true });
+    // Inserisci ogni progetto selezionato come riga separata
+    let completed = 0;
+    for (let c of choices) {
+      db.run("INSERT INTO votes(token, choice) VALUES(?, ?)", [token, c], (err) => {
+        if (err) console.log(err);
+        completed++;
+        if (completed === choices.length) {
+          // Una volta inseriti tutti i voti, segna token come usato
+          db.run("UPDATE tokens SET used=1 WHERE token=?", [token], (err) => {
+            if (err) console.log(err);
+            res.json({ success: true });
+          });
+        }
       });
-    });
+    }
   });
 });
 
