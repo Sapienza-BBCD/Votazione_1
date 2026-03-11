@@ -66,15 +66,15 @@ app.post("/vote", (req, res) => {
     if (row.used === 1) return res.json({ error: "Token già usato" });
 
     const choices = Array.isArray(choice) ? choice : choice.split(",").map(c => c.trim());
-
-    // Inserisci ogni progetto selezionato come riga separata
     let completed = 0;
+
     for (let c of choices) {
       db.run("INSERT INTO votes(token, choice) VALUES(?, ?)", [token, c], (err) => {
         if (err) console.log(err);
+
         completed++;
+        // Solo quando tutte le scelte sono inserite, segna il token come usato
         if (completed === choices.length) {
-          // Una volta inseriti tutti i voti, segna token come usato
           db.run("UPDATE tokens SET used=1 WHERE token=?", [token], (err) => {
             if (err) console.log(err);
             res.json({ success: true });
