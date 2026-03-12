@@ -2,120 +2,68 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<title>Dashboard Admin - LAB2GO</title>
+<title>Admin - Gestione Votazione</title>
 <style>
 body {
-    font-family: Arial, sans-serif;
-    background: #f4f6f8;
-    margin: 0;
-    padding: 0;
-    color: #333;
+  font-family: Arial, sans-serif;
+  background: #0d6efd;
+  color: white;
+  text-align: center;
+  margin: 0;
+  padding: 0;
 }
-
-header {
-    background: #007bff;
-    color: white;
-    padding: 15px 30px;
-    text-align: center;
-    font-size: 24px;
-    font-weight: bold;
+h1 {
+  margin-top: 40px;
+  font-size: 36px;
 }
-
 .container {
-    max-width: 800px;
-    margin: 40px auto;
-    background: white;
-    padding: 30px;
-    border-radius: 12px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    text-align: center;
+  margin-top: 30px;
 }
-
-h2 {
-    margin-bottom: 30px;
-    color: #007bff;
-}
-
 button {
-    background: #007bff;
-    color: white;
-    border: none;
-    padding: 12px 25px;
-    margin: 10px;
-    font-size: 16px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: 0.2s;
+  margin: 15px;
+  padding: 15px 30px;
+  font-size: 18px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.3s;
 }
-
 button:hover {
-    background: #0056b3;
+  opacity: 0.9;
 }
-
-.status {
-    margin-top: 20px;
-    font-size: 18px;
-    font-weight: bold;
-    color: green;
-}
+.btn-open { background: #28a745; color: white; }
+.btn-close { background: #dc3545; color: white; }
+.btn-reset { background: #ffc107; color: black; }
+.btn-qr { background: #17a2b8; color: white; }
+.btn-results { background: #6610f2; color: white; }
 </style>
 </head>
 <body>
 
-<header>Admin Dashboard - LAB2GO</header>
+<h1>Gestione Votazione LAB2GO</h1>
 
-<div class="container">
-
-<h2>Gestione Votazione</h2>
-
-<div id="buttons">
-    <button onclick="apriVotazione()">Apri Votazione</button>
-    <button onclick="chiudiVotazione()">Chiudi Votazione</button>
-    <button onclick="resetVotazione()">Reset Votazione</button>
-    <button onclick="location.href='/download-qrs'">Download QR ZIP</button>
-    <button onclick="location.href='/print-qrs'">Stampa PDF QR</button>
-    <button onclick="location.href='/results-view'">Risultati Live</button>
-    <button onclick="location.href='/admin/dashboard'">Dashboard</button>
-</div>
-
-<p class="status" id="statusMsg">Stato votazione: caricamento...</p>
-
+<div class="container" id="adminPanel" style="display:none;">
+  <button class="btn-open" onclick="fetch('/open-vote').then(r=>r.text()).then(alert)">Apri Votazione</button>
+  <button class="btn-close" onclick="fetch('/close-vote').then(r=>r.text()).then(alert)">Chiudi Votazione</button>
+  <button class="btn-reset" onclick="fetch('/reset-vote').then(r=>r.text()).then(alert)">Reset Votazione</button>
+  <br>
+  <button class="btn-qr" onclick="window.open('/download-qrs')">Download QR ZIP</button>
+  <button class="btn-qr" onclick="window.open('/print-qrs')">Download PDF QR</button>
+  <br>
+  <button class="btn-results" onclick="window.open('/results-view')">Visualizza Risultati Live</button>
 </div>
 
 <script>
-// Aggiorna lo stato iniziale della votazione
-let stato = "pre";
+// Prompt password all'accesso
+const ADMIN_PASSWORD = "lab2go";  // Deve coincidere con quella in server.js
+let pass = prompt("Inserisci password per accedere all'admin:");
 
-function aggiornaStato(msg, color="green") {
-    const status = document.getElementById("statusMsg");
-    status.innerText = "Stato votazione: " + msg;
-    status.style.color = color;
+if(pass === ADMIN_PASSWORD){
+  document.getElementById("adminPanel").style.display = "block";
+} else {
+  alert("Password errata. Accesso negato.");
+  document.body.innerHTML = "<h1>Accesso Negato</h1>";
 }
-
-// Funzioni per aprire/chiudere/reset votazione
-async function apriVotazione() {
-    const res = await fetch("/open-vote");
-    const text = await res.text();
-    aggiornaStato("APERTA");
-    alert(text);
-}
-
-async function chiudiVotazione() {
-    const res = await fetch("/close-vote");
-    const text = await res.text();
-    aggiornaStato("CHIUSA", "red");
-    alert(text);
-}
-
-async function resetVotazione() {
-    const res = await fetch("/reset-vote");
-    const text = await res.text();
-    aggiornaStato("NON ANCORA APERTA", "orange");
-    alert(text);
-}
-
-// Facoltativo: puoi fare fetch iniziale per conoscere lo stato reale dal server
-// fetch("/vote-status").then(r=>r.json()).then(data => aggiornaStato(data.stato));
 </script>
 
 </body>

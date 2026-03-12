@@ -1,95 +1,124 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="it">
 <head>
-
 <meta charset="UTF-8">
-<title>Risultati votazione</title>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
+<title>Risultati in Diretta - LAB2GO</title>
 <style>
-
-body{
-font-family:Arial;
-background:#f4f6f8;
-text-align:center;
+body {
+  margin:0;
+  font-family: Arial, sans-serif;
+  background-color: #0d6efd;
+  color: white;
+  text-align: center;
 }
-
-h1{
-margin-top:40px;
-font-size:40px;
+h1 {
+  padding-top: 30px;
+  font-size: 40px;
 }
-
-#chart{
-width:70%;
-margin:auto;
-margin-top:40px;
+#totalVotes {
+  font-size: 24px;
+  margin-bottom: 30px;
 }
-
+.result {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 20px auto;
+  width: 60%;
+}
+.medaglia {
+  font-size: 30px;
+  width: 50px;
+}
+.progetto {
+  text-align: left;
+  flex: 1;
+  font-size: 24px;
+}
+.barContainer {
+  background: rgba(255,255,255,0.2);
+  width: 300px;
+  height: 30px;
+  border-radius: 15px;
+  overflow: hidden;
+  margin-left: 15px;
+}
+.bar {
+  background: #ffc107;
+  height: 100%;
+  width: 0%;
+  border-radius: 15px;
+  transition: width 0.5s;
+  text-align: right;
+  padding-right: 5px;
+  box-sizing: border-box;
+  color: black;
+  font-weight: bold;
+}
 </style>
-
 </head>
-
 <body>
 
-<h1>Risultati votazione</h1>
-
-<canvas id="chart"></canvas>
+<h1>Risultati in Diretta</h1>
+<div id="totalVotes">Totale dei voti raccolti: 0</div>
+<div id="resultsContainer"></div>
 
 <script>
+// Icone medaglie
+const medaglie = ["🥇","🥈","🥉"];
+const container = document.getElementById("resultsContainer");
+let maxVotes = 0;
 
-let chart;
+// Funzione per aggiornare i risultati
+async function aggiornaRisultati() {
+  const res = await fetch("/results");
+  const data = await res.json();
 
-async function loadResults(){
+  // Calcola totale voti
+  const totale = data.reduce((acc,d) => acc + d.votes, 0);
+  document.getElementById("totalVotes").innerText = `Totale dei voti raccolti: ${totale}`;
 
-const res = await fetch("/results");
-const data = await res.json();
+  // Ordina per numero voti decrescente
+  data.sort((a,b) => b.votes - a.votes);
+  maxVotes = data.length ? data[0].votes : 1;
 
-let labels = [];
-let votes = [];
+  // Pulisce container
+  container.innerHTML = "";
 
-data.forEach(r=>{
-labels.push(r.choice);
-votes.push(r.votes);
-});
+  // Mostra top 3 con medaglie e barre
+  data.forEach((d,i)=>{
+    const row = document.createElement("div");
+    row.className = "result";
 
-if(!chart){
+    const med = document.createElement("div");
+    med.className = "medaglia";
+    med.innerText = i < 3 ? medaglie[i] : "";
+    row.appendChild(med);
 
-const ctx = document.getElementById("chart");
+    const proj = document.createElement("div");
+    proj.className = "progetto";
+    proj.innerText = d.choice;
+    row.appendChild(proj);
 
-chart = new Chart(ctx,{
-type:"bar",
-data:{
-labels:labels,
-datasets:[{
-label:"Voti",
-data:votes
-}]
-},
-options:{
-scales:{
-y:{
-beginAtZero:true
+    const barContainer = document.createElement("div");
+    barContainer.className = "barContainer";
+
+    const bar = document.createElement("div");
+    bar.className = "bar";
+    const perc = Math.round((d.votes/maxVotes)*100);
+    bar.style.width = perc + "%";
+    bar.innerText = d.votes;
+
+    barContainer.appendChild(bar);
+    row.appendChild(barContainer);
+
+    container.appendChild(row);
+  });
 }
-}
-}
-});
 
-}else{
-
-chart.data.labels = labels;
-chart.data.datasets[0].data = votes;
-chart.update();
-
-}
-
-}
-
-loadResults();
-
-setInterval(loadResults,2000);
-
+// Aggiorna ogni 3 secondi
+aggiornaRisultati();
+setInterval(aggiornaRisultati, 3000);
 </script>
 
 </body>

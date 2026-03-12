@@ -20,10 +20,10 @@ const PARTICIPANTI = 300;
 const MAX_VOTES = 2;
 const ADMIN_PASSWORD = "lab2go";
 
-// Stati votazione: pre = non aperta, open = aperta, closed = chiusa
+/* Stati votazione: pre=open/closed */
 let statoVotazione = "pre";
 
-// --- CREAZIONE TABELLE E TOKEN ---
+/* --- Creazione tabelle e token --- */
 db.serialize(() => {
   db.run(`
     CREATE TABLE IF NOT EXISTS votes(
@@ -52,9 +52,9 @@ db.serialize(() => {
   });
 });
 
-// --- ROTTE ---
+/* --- ROTTE --- */
 
-// HOME → vote.html
+// HOME
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "vote.html"));
 });
@@ -71,9 +71,10 @@ app.post("/vote", (req, res) => {
     if (!row) return res.json({ error: "Token non valido" });
 
     db.get("SELECT COUNT(*) as count FROM votes WHERE token=?", [token], (err, result) => {
+      if (err) return res.json({ error: "Errore server" });
       if (result.count >= MAX_VOTES) return res.json({ error: "Hai già usato i tuoi 2 voti" });
 
-      db.run("INSERT INTO votes(token, choice) VALUES(?,?)", [token, choice], (err) => {
+      db.run("INSERT INTO votes(token,choice) VALUES(?,?)", [token, choice], (err) => {
         if (err) return res.json({ error: "Errore server" });
         res.json({ success: true });
       });
@@ -81,42 +82,30 @@ app.post("/vote", (req, res) => {
   });
 });
 
-// LOGIN ADMIN → pagina di login
+// APRI VOTAZIONE
+app.get("/open-vote", (req, res) => {
+  statoVotazione = "open";
+  res.send("Votazione APERTA");
+});
+
+// CHIUDI VOTAZIONE
+app.get("/close-vote", (req, res) => {
+  statoVotazione = "closed";
+  res.send("Votazione CHIUSA");
+});
+
+// RESET
+app.get("/reset-vote", (req, res) => {
+  statoVotazione = "pre";
+  res.send("Votazione NON ANCORA APERTA");
+});
+
+// ADMIN
 app.get("/admin", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "admin-login.html"));
-});
-
-// POST LOGIN ADMIN
-app.post("/admin/login", (req, res) => {
-  const { password } = req.body;
-  if (password === ADMIN_PASSWORD) res.json({ success: true });
-  else res.json({ success: false, error: "Password errata" });
-});
-
-// PAGINA ADMIN DASHBOARD
-app.get("/admin/dashboard", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin.html"));
 });
 
-// APRI / CHIUDI / RESET VOTAZIONE
-app.get("/open-vote", (req, res) => { statoVotazione = "open"; res.send("Votazione APERTA"); });
-app.get("/close-vote", (req, res) => { statoVotazione = "closed"; res.send("Votazione CHIUSA"); });
-app.get("/reset-vote", (req, res) => { statoVotazione = "pre"; res.send("Votazione NON ANCORA APERTA"); });
-
-// RISULTATI LIVE → JSON per grafico
-app.get("/results", (req, res) => {
-  db.all("SELECT choice, COUNT(*) AS votes FROM votes GROUP BY choice", (err, rows) => {
-    if (err) return res.json({ error: "Errore server" });
-    res.json(rows);
-  });
-});
-
-// PAGINA RISULTATI → HTML
-app.get("/results-view", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "results-view.html"));
-});
-
-// LISTA TOKEN (solo admin/debug)
+// LISTA TOKEN
 app.get("/tokens", (req, res) => {
   db.all("SELECT token FROM tokens", (err, rows) => {
     if (err) return res.json({ error: "Errore server" });
@@ -131,12 +120,15 @@ app.get("/download-qrs", async (req, res) => {
   archive.pipe(res);
 
   db.all("SELECT token FROM tokens", async (err, rows) => {
+    if (err) return res.status(500).send("Errore server");
+
     for (let i = 0; i < rows.length; i++) {
       const token = rows[i].token;
       const url = `https://votazione-1.onrender.com/?token=${token}`;
       const qr = await QRCode.toBuffer(url);
       archive.append(qr, { name: `qr-${i + 1}.png` });
     }
+
     archive.finalize();
   });
 });
@@ -159,17 +151,26 @@ app.get("/print-qrs", async (req, res) => {
       const qr = await QRCode.toDataURL(url);
       const base64 = qr.replace(/^data:image\/png;base64,/, "");
       const img = Buffer.from(base64, "base64");
-
       doc.image(img, x, y, { width: size });
       count++;
       x += 180;
-
-      if (count % perRow === 0) { x = 50; y += 200; }
-      if (y > 700) { doc.addPage(); x = 50; y = 50; }
+      if (count % perRow === 0) {
+        x = 50;
+        y += 200;
+      }
+      if (y > 700) {
+        doc.addPage();
+        x = 50;
+        y = 50;
+      }
     }
-
     doc.end();
   });
+});
+
+// RISULTATI LIVE
+app.get("/results-view", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "results-view.html"));
 });
 
 // AVVIO SERVER
