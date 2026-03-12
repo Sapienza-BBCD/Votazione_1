@@ -18,6 +18,15 @@ const db = new sqlite3.Database("votes.db");
 
 const PARTICIPANTI = 300;
 const MAX_VOTES = 2;
+const ADMIN_PASSWORD = "lab2go";
+
+/*
+stati votazione:
+pre     = non ancora aperta
+open    = aperta
+closed  = chiusa
+*/
+let statoVotazione = "pre";
 
 db.serialize(() => {
 
@@ -38,7 +47,7 @@ db.serialize(() => {
 
   db.get("SELECT COUNT(*) as count FROM tokens",(err,row)=>{
 
-    if(row.count===0){
+    if(row.count === 0){
 
       for(let i=0;i<PARTICIPANTI;i++){
         const token = uuidv4();
@@ -46,7 +55,6 @@ db.serialize(() => {
       }
 
       console.log("Token generati:",PARTICIPANTI);
-
     }
 
   });
@@ -62,6 +70,14 @@ app.get("/",(req,res)=>{
 
 // VOTO
 app.post("/vote",(req,res)=>{
+
+  if(statoVotazione === "pre"){
+    return res.json({error:"La votazione non è ancora aperta"});
+  }
+
+  if(statoVotazione === "closed"){
+    return res.json({error:"La votazione è chiusa"});
+  }
 
   const {token,choice} = req.body;
 
@@ -96,6 +112,27 @@ app.post("/vote",(req,res)=>{
 });
 
 
+// APRI VOTAZIONE
+app.get("/open-vote",(req,res)=>{
+  statoVotazione = "open";
+  res.send("Votazione APERTA");
+});
+
+
+// CHIUDI VOTAZIONE
+app.get("/close-vote",(req,res)=>{
+  statoVotazione = "closed";
+  res.send("Votazione CHIUSA");
+});
+
+
+// RESET (torna a non aperta)
+app.get("/reset-vote",(req,res)=>{
+  statoVotazione = "pre";
+  res.send("Votazione NON ANCORA APERTA");
+});
+
+
 // RISULTATI
 app.get("/results",(req,res)=>{
 
@@ -112,7 +149,15 @@ app.get("/results",(req,res)=>{
 
 // ADMIN
 app.get("/admin",(req,res)=>{
-  res.sendFile(path.join(__dirname,"public","admin.html"));
+
+const password = req.query.password;
+
+if(password !== ADMIN_PASSWORD){
+return res.send("Accesso negato");
+}
+
+res.sendFile(path.join(__dirname,"public","admin.html"));
+
 });
 
 

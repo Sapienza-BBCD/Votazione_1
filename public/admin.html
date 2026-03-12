@@ -4,68 +4,69 @@
 <head>
 
 <meta charset="UTF-8">
-<title>Risultati Live - LAB2GO</title>
+<title>Pannello Admin - Votazione LAB2GO</title>
 
 <style>
 
 body{
 font-family:Arial;
-background:#0f172a;
-color:white;
+background:#f4f6f8;
 text-align:center;
 margin:0;
 }
 
 h1{
-font-size:50px;
-margin-top:20px;
+margin-top:40px;
+font-size:36px;
 }
 
-#totalVotes{
-font-size:28px;
-margin-bottom:20px;
-color:#38bdf8;
+.container{
+margin-top:50px;
 }
 
-#results{
-width:70%;
-margin:auto;
+button{
+display:block;
+margin:15px auto;
+padding:15px 40px;
+font-size:18px;
+border:none;
+border-radius:10px;
+cursor:pointer;
+width:300px;
 }
 
-.project{
-margin-bottom:35px;
+.open{
+background:#28a745;
+color:white;
 }
 
-.rank{
-font-size:28px;
-margin-bottom:5px;
+.close{
+background:#dc3545;
+color:white;
 }
 
-.label{
-font-size:26px;
-margin-bottom:5px;
+.reset{
+background:#ffc107;
 }
 
-.bar-container{
-width:100%;
-background:#1e293b;
-border-radius:12px;
-overflow:hidden;
+.results{
+background:#007bff;
+color:white;
 }
 
-.bar{
-height:45px;
-background:#38bdf8;
-text-align:right;
-padding-right:12px;
-line-height:45px;
-font-size:22px;
+.qr{
+background:#6c757d;
+color:white;
+}
+
+button:hover{
+opacity:0.9;
+}
+
+.status{
+margin-top:30px;
+font-size:20px;
 font-weight:bold;
-transition:width 0.8s;
-}
-
-.leader{
-background:#22c55e !important;
 }
 
 </style>
@@ -74,83 +75,60 @@ background:#22c55e !important;
 
 <body>
 
-<h1>📊 Risultati in Diretta</h1>
+<h1>Pannello di controllo votazione</h1>
 
-<div id="totalVotes"></div>
+<div class="container">
 
-<div id="results"></div>
+<button class="open" onclick="openVote()">🟢 Apri votazione</button>
+
+<button class="close" onclick="closeVote()">🔴 Chiudi votazione</button>
+
+<button class="reset" onclick="resetVote()">🔄 Reset votazione</button>
+
+<button class="results" onclick="window.open('/results-view','_blank')">
+📊 Risultati live
+</button>
+
+<button class="qr" onclick="window.open('/download-qrs','_blank')">
+📥 Scarica QR
+</button>
+
+<button class="qr" onclick="window.open('/print-qrs','_blank')">
+🖨 Stampa QR
+</button>
+
+<div class="status" id="status"></div>
+
+</div>
 
 <script>
 
-let lastLeader = "";
+async function openVote(){
 
-async function loadResults(){
+const res = await fetch("/open-vote");
+const text = await res.text();
 
-const res = await fetch("/results");
-const data = await res.json();
-
-data.sort((a,b)=>b.votes-a.votes);
-
-let maxVotes = 0;
-let totalVotes = 0;
-
-data.forEach(p=>{
-if(p.votes>maxVotes) maxVotes=p.votes;
-totalVotes += p.votes;
-});
-
-document.getElementById("totalVotes").innerHTML =
-"Totale voti raccolti: <b>"+totalVotes+"</b>";
-
-let container = document.getElementById("results");
-container.innerHTML="";
-
-data.forEach((p,i)=>{
-
-let percent = maxVotes ? (p.votes/maxVotes)*100 : 0;
-
-let medal="";
-if(i===0) medal="🥇";
-if(i===1) medal="🥈";
-if(i===2) medal="🥉";
-
-let leaderClass = i===0 ? "leader" : "";
-
-if(i===0 && lastLeader !== p.choice){
-document.body.style.background="#1e293b";
-setTimeout(()=>{
-document.body.style.background="#0f172a";
-},500);
-lastLeader = p.choice;
-}
-
-let div = document.createElement("div");
-div.className="project";
-
-div.innerHTML = `
-<div class="rank">${medal} ${i+1}° posto</div>
-<div class="label">${p.choice}</div>
-<div class="bar-container">
-<div class="bar ${leaderClass}" style="width:${percent}%">${p.votes} voti</div>
-</div>
-`;
-
-container.appendChild(div);
-
-});
+document.getElementById("status").innerText = text;
 
 }
 
-loadResults();
+async function closeVote(){
 
-setInterval(loadResults,3000);
+const res = await fetch("/close-vote");
+const text = await res.text();
 
-// modalità schermo pieno
-document.body.addEventListener("click",()=>{
-if(!document.fullscreenElement){
-document.documentElement.requestFullscreen();
+document.getElementById("status").innerText = text;
+
 }
-});
+
+async function resetVote(){
+
+const res = await fetch("/reset-vote");
+const text = await res.text();
+
+document.getElementById("status").innerText = text;
+
+}
 
 </script>
 
