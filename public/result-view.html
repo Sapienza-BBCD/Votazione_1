@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<meta charset="UTF-8">
+<title>Risultati votazione</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+
+body{
+font-family:Arial;
+background:#f4f6f8;
+text-align:center;
+}
+
+h1{
+margin-top:40px;
+font-size:40px;
+}
+
+#chart{
+width:70%;
+margin:auto;
+margin-top:40px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>Risultati votazione</h1>
+
+<canvas id="chart"></canvas>
+
+<script>
+
+let chart;
+
+async function loadResults(){
+
+const res = await fetch("/results");
+const data = await res.json();
+
+let labels = [];
+let votes = [];
+
+data.forEach(r=>{
+labels.push(r.choice);
+votes.push(r.votes);
+});
+
+if(!chart){
+
+const ctx = document.getElementById("chart");
+
+chart = new Chart(ctx,{
+type:"bar",
+data:{
+labels:labels,
+datasets:[{
+label:"Voti",
+data:votes
+}]
+},
+options:{
+scales:{
+y:{
+beginAtZero:true
+}
+}
+}
+});
+
+}else{
+
+chart.data.labels = labels;
+chart.data.datasets[0].data = votes;
+chart.update();
+
+}
+
+}
+
+loadResults();
+
+setInterval(loadResults,2000);
+
+</script>
+
+</body>
+</html>

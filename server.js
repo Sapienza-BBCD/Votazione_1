@@ -255,6 +255,10 @@ app.get("/print-qrs", async (req,res)=>{
 
 });
 
+//results
+app.get("/results-view",(req,res)=>{
+  res.sendFile(path.join(__dirname,"public","results-view.html"));
+});
 
 // AVVIO SERVER
 app.listen(PORT,()=>{
