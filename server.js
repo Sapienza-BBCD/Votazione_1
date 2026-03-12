@@ -10,20 +10,23 @@ const archiver = require("archiver");
 const PORT = process.env.PORT || 3000;
 const app = express();
 
+// Middleware
 app.use(express.static("public"));
 app.use(express.json());
 app.use(cors());
 
+// Database
 const db = new sqlite3.Database("votes.db");
-
 const PARTICIPANTI = 300;
 const MAX_VOTES = 2;
+
+// Password admin
 const ADMIN_PASSWORD = "lab2go";
 
-/* Stati votazione: pre=open/closed */
+// Stato votazione: pre=open/closed
 let statoVotazione = "pre";
 
-/* --- Creazione tabelle e token --- */
+// Creazione tabelle e generazione token
 db.serialize(() => {
   db.run(`
     CREATE TABLE IF NOT EXISTS votes(
@@ -40,7 +43,8 @@ db.serialize(() => {
     )
   `);
 
-  db.get("SELECT COUNT(*) as count FROM tokens", (err, row) => {
+  // Genera token se tabella vuota
+  db.get("SELECT COUNT(*) AS count FROM tokens", (err, row) => {
     if (err) return console.error(err);
     if (row.count === 0) {
       for (let i = 0; i < PARTICIPANTI; i++) {
@@ -52,14 +56,14 @@ db.serialize(() => {
   });
 });
 
-/* --- ROTTE --- */
+// --- ROTTE --- //
 
-// HOME
+// Pagina voto
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "vote.html"));
 });
 
-// VOTO
+// POST /vote
 app.post("/vote", (req, res) => {
   if (statoVotazione === "pre") return res.json({ error: "La votazione non è ancora aperta" });
   if (statoVotazione === "closed") return res.json({ error: "La votazione è chiusa" });
@@ -70,11 +74,10 @@ app.post("/vote", (req, res) => {
     if (err) return res.json({ error: "Errore server" });
     if (!row) return res.json({ error: "Token non valido" });
 
-    db.get("SELECT COUNT(*) as count FROM votes WHERE token=?", [token], (err, result) => {
-      if (err) return res.json({ error: "Errore server" });
+    db.get("SELECT COUNT(*) AS count FROM votes WHERE token=?", [token], (err, result) => {
       if (result.count >= MAX_VOTES) return res.json({ error: "Hai già usato i tuoi 2 voti" });
 
-      db.run("INSERT INTO votes(token,choice) VALUES(?,?)", [token, choice], (err) => {
+      db.run("INSERT INTO votes(token, choice) VALUES(?, ?)", [token, choice], (err) => {
         if (err) return res.json({ error: "Errore server" });
         res.json({ success: true });
       });
@@ -82,30 +85,39 @@ app.post("/vote", (req, res) => {
   });
 });
 
-// APRI VOTAZIONE
-app.get("/open-vote", (req, res) => {
-  statoVotazione = "open";
-  res.send("Votazione APERTA");
+// APRI / CHIUDI / RESET votazione
+app.get("/open-vote", (req, res) => { statoVotazione = "open"; res.send("Votazione APERTA"); });
+app.get("/close-vote", (req, res) => { statoVotazione = "closed"; res.send("Votazione CHIUSA"); });
+app.get("/reset-vote", (req, res) => { statoVotazione = "pre"; res.send("Votazione NON ANCORA APERTA"); });
+
+// Dati risultati JSON
+app.get("/results-data", (req, res) => {
+  db.all(
+    "SELECT choice, COUNT(*) AS votes FROM votes GROUP BY choice", 
+    (err, rows) => {
+    if (err) return res.json({ error: "Errore server" });
+    res.json(rows);
+  });
 });
 
-// CHIUDI VOTAZIONE
-app.get("/close-vote", (req, res) => {
-  statoVotazione = "closed";
-  res.send("Votazione CHIUSA");
+// Visualizzazione risultati live
+app.get("/results-view", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "results-view.html"));
 });
 
-// RESET
-app.get("/reset-vote", (req, res) => {
-  statoVotazione = "pre";
-  res.send("Votazione NON ANCORA APERTA");
-});
-
-// ADMIN
+// Admin: richiesta password
 app.get("/admin", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "admin.html"));
+  res.sendFile(path.join(__dirname, "public", "admin-login.html"));
 });
 
-// LISTA TOKEN
+// Admin con password
+app.post("/admin-login", (req, res) => {
+  const { password } = req.body;
+  if (password !== ADMIN_PASSWORD) return res.json({ error: "Password errata" });
+  res.json({ success: true });
+});
+
+// Lista token (solo admin/debug)
 app.get("/tokens", (req, res) => {
   db.all("SELECT token FROM tokens", (err, rows) => {
     if (err) return res.json({ error: "Errore server" });
@@ -113,22 +125,19 @@ app.get("/tokens", (req, res) => {
   });
 });
 
-// DOWNLOAD QR ZIP
+// ZIP QR
 app.get("/download-qrs", async (req, res) => {
   res.attachment("qrcodes.zip");
   const archive = archiver("zip");
   archive.pipe(res);
 
   db.all("SELECT token FROM tokens", async (err, rows) => {
-    if (err) return res.status(500).send("Errore server");
-
     for (let i = 0; i < rows.length; i++) {
       const token = rows[i].token;
       const url = `https://votazione-1.onrender.com/?token=${token}`;
       const qr = await QRCode.toBuffer(url);
       archive.append(qr, { name: `qr-${i + 1}.png` });
     }
-
     archive.finalize();
   });
 });
@@ -141,8 +150,7 @@ app.get("/print-qrs", async (req, res) => {
   doc.pipe(res);
 
   db.all("SELECT token FROM tokens", async (err, rows) => {
-    const perRow = 3;
-    const size = 150;
+    const perRow = 3, size = 150;
     let x = 50, y = 50, count = 0;
 
     for (let i = 0; i < rows.length; i++) {
@@ -151,29 +159,16 @@ app.get("/print-qrs", async (req, res) => {
       const qr = await QRCode.toDataURL(url);
       const base64 = qr.replace(/^data:image\/png;base64,/, "");
       const img = Buffer.from(base64, "base64");
+
       doc.image(img, x, y, { width: size });
-      count++;
-      x += 180;
-      if (count % perRow === 0) {
-        x = 50;
-        y += 200;
-      }
-      if (y > 700) {
-        doc.addPage();
-        x = 50;
-        y = 50;
-      }
+      count++; x += 180;
+
+      if (count % perRow === 0) { x = 50; y += 200; }
+      if (y > 700) { doc.addPage(); x = 50; y = 50; }
     }
     doc.end();
   });
 });
 
-// RISULTATI LIVE
-app.get("/results-view", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "results-view.html"));
-});
-
-// AVVIO SERVER
-app.listen(PORT, () => {
-  console.log("Server attivo su porta", PORT);
-});
+// Avvio server
+app.listen(PORT, () => console.log(`Server attivo su porta ${PORT}`));
