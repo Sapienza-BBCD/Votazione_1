@@ -10,16 +10,17 @@ const archiver = require("archiver");
 const PORT = process.env.PORT || 3000;
 const app = express();
 
-// Middleware
 app.use(express.static("public"));
 app.use(express.json());
 app.use(cors());
 
 const db = new sqlite3.Database("votes.db");
-const PARTICIPANTI = 300; // numero di token da generare
 
-// --- Creazione tabelle e token ---
+const PARTICIPANTI = 300;
+const MAX_VOTES = 2;
+
 db.serialize(() => {
+
   db.run(`
     CREATE TABLE IF NOT EXISTS votes(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -31,152 +32,139 @@ db.serialize(() => {
 
   db.run(`
     CREATE TABLE IF NOT EXISTS tokens(
-      token TEXT PRIMARY KEY,
-      used INTEGER DEFAULT 0
+      token TEXT PRIMARY KEY
     )
   `);
 
-  // Genera token solo se tabella vuota
-  db.get("SELECT COUNT(*) AS count FROM tokens", (err, row) => {
-    if (err) return console.error(err);
-    if (row.count === 0) {
-      for (let i = 0; i < PARTICIPANTI; i++) {
+  db.get("SELECT COUNT(*) as count FROM tokens", (err,row)=>{
+    if(row.count===0){
+
+      for(let i=0;i<PARTICIPANTI;i++){
         const token = uuidv4();
-        db.run("INSERT INTO tokens(token) VALUES(?)", [token]);
+        db.run("INSERT INTO tokens(token) VALUES(?)",[token]);
       }
-      console.log(`${PARTICIPANTI} token generati sul server!`);
+
+      console.log("Token generati:",PARTICIPANTI);
     }
   });
+
 });
 
-// --- ROTTE ---
 
-// "/" → vote.html
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "vote.html"));
+// homepage
+app.get("/", (req,res)=>{
+  res.sendFile(path.join(__dirname,"public","vote.html"));
 });
 
-// POST /vote → registra voto multiplo
-app.post("/vote", (req, res) => {
-  const { token, choice } = req.body;
 
-  db.get("SELECT * FROM tokens WHERE token=?", [token], (err, row) => {
-    if (err) return res.json({ error: "Errore server" });
-    if (!row) return res.json({ error: "Token non valido" });
-    if (row.used === 1) return res.json({ error: "Token già usato" });
+// votazione
+app.post("/vote",(req,res)=>{
 
-    const choices = Array.isArray(choice) ? choice : choice.split(",").map(c => c.trim());
-    let completed = 0;
+  const {token,choice} = req.body;
 
-    for (let c of choices) {
-      db.run("INSERT INTO votes(token, choice) VALUES(?, ?)", [token, c], (err) => {
-        if (err) console.log(err);
+  db.get("SELECT * FROM tokens WHERE token=?",[token],(err,row)=>{
 
-        completed++;
-        // Solo quando tutte le scelte sono inserite, segna il token come usato
-        if (completed === choices.length) {
-          db.run("UPDATE tokens SET used=1 WHERE token=?", [token], (err) => {
-            if (err) console.log(err);
-            res.json({ success: true });
-          });
+    if(err) return res.json({error:"Errore server"});
+    if(!row) return res.json({error:"Token non valido"});
+
+    db.get(
+      "SELECT COUNT(*) as count FROM votes WHERE token=?",
+      [token],
+      (err,result)=>{
+
+        if(result.count >= MAX_VOTES){
+          return res.json({error:"Hai già usato i tuoi 2 voti"});
         }
-      });
-    }
+
+        db.run(
+          "INSERT INTO votes(token,choice) VALUES(?,?)",
+          [token,choice],
+          (err)=>{
+            if(err) return res.json({error:"Errore server"});
+            res.json({success:true});
+          }
+        );
+
+      }
+    );
+
   });
+
 });
 
-// GET /results → risultati
-app.get("/results", (req, res) => {
-  db.all("SELECT choice, COUNT(*) AS votes FROM votes GROUP BY choice", (err, rows) => {
-    if (err) return res.json({ error: "Errore server" });
+
+// risultati
+app.get("/results",(req,res)=>{
+
+  db.all(
+    "SELECT choice, COUNT(*) as votes FROM votes GROUP BY choice",
+    (err,rows)=>{
+
+      if(err) return res.json({error:"Errore server"});
+      res.json(rows);
+
+    });
+
+});
+
+
+// admin
+app.get("/admin",(req,res)=>{
+  res.sendFile(path.join(__dirname,"public","admin.html"));
+});
+
+
+// lista token
+app.get("/tokens",(req,res)=>{
+
+  db.all("SELECT token FROM tokens",(err,rows)=>{
+    if(err) return res.json({error:"Errore server"});
     res.json(rows);
   });
+
 });
 
-// GET /tokens → lista token (debug/admin)
-app.get("/tokens", (req, res) => {
-  db.all("SELECT token FROM tokens", (err, rows) => {
-    if (err) return res.json({ error: "Errore server" });
-    res.json(rows);
-  });
-});
 
-// GET /admin → admin.html
-app.get("/admin", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "admin.html"));
-});
+// download QR zip
+app.get("/download-qrs",async(req,res)=>{
 
-// GET /download-qrs → zip dei QR
-app.get("/download-qrs", async (req, res) => {
   res.attachment("qrcodes.zip");
   const archive = archiver("zip");
   archive.pipe(res);
 
-  db.all("SELECT token FROM tokens", async (err, rows) => {
-    if (err) {
-      res.status(500).send("Errore server");
-      return;
-    }
+  db.all("SELECT token FROM tokens", async (err,rows)=>{
 
-    for (let i = 0; i < rows.length; i++) {
+    for(let i=0;i<rows.length;i++){
+
       const token = rows[i].token;
-      const url = `https://votazione-1.onrender.com/vote.html?token=${token}`;
+      const url = `https://votazione-1.onrender.com/?token=${token}`;
+
       const qr = await QRCode.toBuffer(url);
-      archive.append(qr, { name: `qr-${i + 1}.png` });
+
+      archive.append(qr,{
+        name:`qr-${i+1}.png`
+      });
+
     }
 
     archive.finalize();
+
   });
+
 });
 
-// GET /print-qrs → PDF dei QR
-app.get("/print-qrs", async (req, res) => {
-  const doc = new PDFDocument({ margin: 30 });
-  res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", "inline; filename=qrcodes.pdf");
+
+// PDF QR stampabili
+app.get("/print-qrs", async (req,res)=>{
+
+  const doc = new PDFDocument({margin:30});
+
+  res.setHeader("Content-Type","application/pdf");
+  res.setHeader("Content-Disposition","inline; filename=qrcodes.pdf");
+
   doc.pipe(res);
 
-  db.all("SELECT token FROM tokens", async (err, rows) => {
-    if (err) {
-      doc.text("Errore server");
-      doc.end();
-      return;
-    }
+  db.all("SELECT token FROM tokens", async (err,rows)=>{
 
     const perRow = 3;
-    const size = 150;
-    let x = 50, y = 50, count = 0;
-
-    for (let i = 0; i < rows.length; i++) {
-      const token = rows[i].token;
-      const url = `https://votazione-1.onrender.com/vote.html?token=${token}`;
-      const qr = await QRCode.toDataURL(url);
-      const base64 = qr.replace(/^data:image\/png;base64,/, "");
-      const img = Buffer.from(base64, "base64");
-
-      doc.image(img, x, y, { width: size });
-      doc.fontSize(10).text(`QR ${i + 1}`, x, y + size + 5);
-
-      count++;
-      x += 180;
-
-      if (count % perRow === 0) {
-        x = 50;
-        y += 200;
-      }
-
-      if (y > 700) {
-        doc.addPage();
-        x = 50;
-        y = 50;
-      }
-    }
-
-    doc.end();
-  });
-});
-
-// Avvio server
-app.listen(PORT, () => {
-  console.log(`Server attivo su porta ${PORT}`);
-});
+    const
