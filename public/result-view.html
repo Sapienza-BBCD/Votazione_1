@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Risultati in diretta - LAB2GO</title>
+<style>
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #004080; /* blu intenso */
+    color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  h1 {
+    margin-top: 20px;
+    font-size: 48px;
+  }
+  #totaleVoti {
+    font-size: 24px;
+    margin: 10px 0 30px 0;
+  }
+  .classifica {
+    width: 80%;
+    max-width: 800px;
+  }
+  .progetto {
+    margin-bottom: 30px;
+  }
+  .nome-progetto {
+    display: flex;
+    align-items: center;
+    font-size: 22px;
+    margin-bottom: 5px;
+  }
+  .medaglia {
+    width: 30px;
+    margin-right: 10px;
+  }
+  .barra {
+    width: 100%;
+    background: #ddd;
+    border-radius: 10px;
+    overflow: hidden;
+    height: 25px;
+  }
+  .riempimento {
+    height: 100%;
+    background: #00ccff;
+    width: 0;
+    transition: width 0.5s ease-in-out;
+  }
+</style>
+</head>
+<body>
+
+<h1>Risultati in diretta</h1>
+<div id="totaleVoti">Totale voti raccolti: 0</div>
+<div class="classifica" id="classifica"></div>
+
+<script>
+async function aggiornaRisultati() {
+  try {
+    const res = await fetch("/results-data");  // ✔ richiesta ai dati JSON
+    const data = await res.json();
+
+    const totale = data.reduce((sum, p) => sum + p.votes, 0);
+    document.getElementById("totaleVoti").innerText = `Totale voti raccolti: ${totale}`;
+
+    data.sort((a, b) => b.votes - a.votes);
+
+    const container = document.getElementById("classifica");
+    container.innerHTML = "";
+
+    data.forEach((p, index) => {
+      const proporzione = totale ? Math.round((p.votes / totale) * 100) : 0;
+
+      container.innerHTML += `
+        <div style="margin:10px 0;">
+          <div style="font-size: 22px;">${["🥇","🥈","🥉"][index] || ""} ${p.choice} – ${p.votes} voti</div>
+          <div style="background: rgba(255,255,255,0.2); width:80%; height:30px; border-radius:6px; margin:auto">
+            <div style="width:${proporzione}%; height:100%; background:#ffc107; border-radius:6px;"></div>
+          </div>
+        </div>
+      `;
+    });
+
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+aggiornaRisultati();
+setInterval(aggiornaRisultati, 3000);
+</script>
+
+</body>
+</html>
