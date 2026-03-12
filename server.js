@@ -133,17 +133,20 @@ app.get("/reset-vote",(req,res)=>{
 });
 
 
-// RISULTATI
-app.get("/results",(req,res)=>{
-
+// RISULTATI JSON (per la pagina results-view)
+app.get("/results", (req,res)=>{
   db.all(
     "SELECT choice, COUNT(*) as votes FROM votes GROUP BY choice",
     (err,rows)=>{
       if(err) return res.json({error:"Errore server"});
-      res.json(rows);
+      res.json(rows); // restituisce solo i dati
     }
   );
+});
 
+// Servizio per mostrare la pagina dei risultati
+app.get("/results-view",(req,res)=>{
+  res.sendFile(path.join(__dirname,"public","results-view.html"));
 });
 
 
@@ -255,10 +258,6 @@ app.get("/print-qrs", async (req,res)=>{
 
 });
 
-//results
-app.get("/results-view",(req,res)=>{
-  res.sendFile(path.join(__dirname,"public","results-view.html"));
-});
 
 // AVVIO SERVER
 app.listen(PORT,()=>{
