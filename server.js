@@ -36,7 +36,8 @@ db.serialize(() => {
     )
   `);
 
-  db.get("SELECT COUNT(*) as count FROM tokens", (err,row)=>{
+  db.get("SELECT COUNT(*) as count FROM tokens",(err,row)=>{
+
     if(row.count===0){
 
       for(let i=0;i<PARTICIPANTI;i++){
@@ -45,19 +46,21 @@ db.serialize(() => {
       }
 
       console.log("Token generati:",PARTICIPANTI);
+
     }
+
   });
 
 });
 
 
-// homepage
-app.get("/", (req,res)=>{
+// HOME
+app.get("/",(req,res)=>{
   res.sendFile(path.join(__dirname,"public","vote.html"));
 });
 
 
-// votazione
+// VOTO
 app.post("/vote",(req,res)=>{
 
   const {token,choice} = req.body;
@@ -93,28 +96,27 @@ app.post("/vote",(req,res)=>{
 });
 
 
-// risultati
+// RISULTATI
 app.get("/results",(req,res)=>{
 
   db.all(
     "SELECT choice, COUNT(*) as votes FROM votes GROUP BY choice",
     (err,rows)=>{
-
       if(err) return res.json({error:"Errore server"});
       res.json(rows);
-
-    });
+    }
+  );
 
 });
 
 
-// admin
+// ADMIN
 app.get("/admin",(req,res)=>{
   res.sendFile(path.join(__dirname,"public","admin.html"));
 });
 
 
-// lista token
+// LISTA TOKEN
 app.get("/tokens",(req,res)=>{
 
   db.all("SELECT token FROM tokens",(err,rows)=>{
@@ -125,10 +127,11 @@ app.get("/tokens",(req,res)=>{
 });
 
 
-// download QR zip
+// DOWNLOAD QR ZIP
 app.get("/download-qrs",async(req,res)=>{
 
   res.attachment("qrcodes.zip");
+
   const archive = archiver("zip");
   archive.pipe(res);
 
@@ -154,7 +157,7 @@ app.get("/download-qrs",async(req,res)=>{
 });
 
 
-// PDF QR stampabili
+// PDF QR
 app.get("/print-qrs", async (req,res)=>{
 
   const doc = new PDFDocument({margin:30});
@@ -167,4 +170,48 @@ app.get("/print-qrs", async (req,res)=>{
   db.all("SELECT token FROM tokens", async (err,rows)=>{
 
     const perRow = 3;
-    const
+    const size = 150;
+
+    let x = 50;
+    let y = 50;
+    let count = 0;
+
+    for(let i=0;i<rows.length;i++){
+
+      const token = rows[i].token;
+      const url = `https://votazione-1.onrender.com/?token=${token}`;
+
+      const qr = await QRCode.toDataURL(url);
+
+      const base64 = qr.replace(/^data:image\/png;base64,/,"");
+      const img = Buffer.from(base64,"base64");
+
+      doc.image(img,x,y,{width:size});
+
+      count++;
+      x += 180;
+
+      if(count % perRow === 0){
+        x = 50;
+        y += 200;
+      }
+
+      if(y > 700){
+        doc.addPage();
+        x = 50;
+        y = 50;
+      }
+
+    }
+
+    doc.end();
+
+  });
+
+});
+
+
+// AVVIO SERVER
+app.listen(PORT,()=>{
+  console.log("Server attivo su porta",PORT);
+});
