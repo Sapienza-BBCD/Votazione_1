@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Login Admin - LAB2GO</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: #f4f6f8;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+}
+.container {
+    margin-top: 80px;
+}
+input, button {
+    padding: 10px;
+    font-size: 16px;
+    margin: 5px;
+}
+button {
+    cursor: pointer;
+}
+button:hover {
+    background: #007bff;
+    color: white;
+}
+#dashboard {
+    display: none;
+    margin-top: 30px;
+}
+button.action-btn {
+    display: block;
+    margin: 10px auto;
+    width: 200px;
+}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Admin - LAB2GO</h1>
+
+<!-- Login -->
+<div id="login">
+    <input type="password" id="password" placeholder="Inserisci password">
+    <button id="loginBtn">Accedi</button>
+    <p id="loginMsg" style="color:red;"></p>
+</div>
+
+<!-- Dashboard -->
+<div id="dashboard">
+    <h2>Dashboard Admin</h2>
+    <button class="action-btn" onclick="apriVotazione()">Apri Votazione</button>
+    <button class="action-btn" onclick="chiudiVotazione()">Chiudi Votazione</button>
+    <button class="action-btn" onclick="resetVotazione()">Reset Votazione</button>
+    <button class="action-btn" onclick="location.href='/download-qrs'">Download QR ZIP</button>
+    <button class="action-btn" onclick="location.href='/print-qrs'">Stampa PDF QR</button>
+    <button class="action-btn" onclick="location.href='/results-view'">Risultati Live</button>
+    <button class="action-btn" onclick="location.href='/admin/dashboard'">Dashboard</button>
+</div>
+
+<script>
+// LOGIN
+document.getElementById("loginBtn").addEventListener("click", async () => {
+    const pwd = document.getElementById("password").value;
+    const res = await fetch("/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: pwd })
+    });
+    const data = await res.json();
+    if (data.success) {
+        document.getElementById("login").style.display = "none";
+        document.getElementById("dashboard").style.display = "block";
+    } else {
+        document.getElementById("loginMsg").innerText = "Password errata!";
+    }
+});
+
+// FUNZIONI AZIONE VOTAZIONE
+async function apriVotazione() {
+    const res = await fetch("/open-vote");
+    alert(await res.text());
+}
+
+async function chiudiVotazione() {
+    const res = await fetch("/close-vote");
+    alert(await res.text());
+}
+
+async function resetVotazione() {
+    const res = await fetch("/reset-vote");
+    alert(await res.text());
+}
+</script>
+</body>
+</html>
