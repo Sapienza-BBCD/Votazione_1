@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<meta charset="UTF-8">
+<title>Vota il progetto preferito - LAB2GO</title>
+
+<style>
+
+body{
+font-family: Arial;
+text-align:center;
+background:#f4f6f8;
+margin:0;
+}
+
+header{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:10px 30px;
+background:white;
+box-shadow:0 2px 5px rgba(0,0,0,0.1);
+}
+
+.logo{
+height:60px;
+}
+
+.container{
+margin-top:40px;
+}
+
+h1{
+font-size:36px;
+color: #630;
+font-weight: bold;
+}
+
+.info{
+background:white;
+padding:15px;
+margin:20px auto;
+width:60%;
+border-radius:10px;
+box-shadow:0 2px 5px rgba(0,0,0,0.1);
+color: #630;
+}
+
+table{
+margin:auto;
+border-collapse:collapse;
+background:white;
+box-shadow:0 2px 5px rgba(0,0,0,0.1);
+}
+
+td{
+padding:24px 40px;
+border-bottom:1px solid #ddd;
+color: #630;
+font-size: 24px;
+font-weight: bold;
+}
+
+button{
+margin-top:30px;
+padding:12px 30px;
+font-size:18px;
+background:#007BFF;
+color:white;
+border:none;
+border-radius:8px;
+cursor:pointer;
+}
+
+button:hover{
+background:#0056b3;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<header>
+
+<img src="logo1.png" class="logo">
+<img src="logo2.png" class="logo">
+
+</header>
+
+<div class="container">
+
+<h1>Vota il progetto preferito - LAB2GO</h1>
+
+<div class="info">
+
+Il QR code è monouso.  
+Una volta inviato il voto **non sarà possibile modificarlo**.  
+Puoi votare **massimo 2 progetti**.
+
+</div>
+
+<form id="voteForm">
+
+<p>&nbsp;</p>
+<table>
+
+<tr>
+<td>Progetto 1</td>
+<td><input type="checkbox" name="choice" value="Progetto 1"></td>
+</tr>
+
+<tr>
+<td>Progetto 2</td>
+<td><input type="checkbox" name="choice" value="Progetto 2"></td>
+</tr>
+
+<tr>
+<td>Progetto 3</td>
+<td><input type="checkbox" name="choice" value="Progetto 3"></td>
+</tr>
+
+<tr>
+<td>Progetto 4</td>
+<td><input type="checkbox" name="choice" value="Progetto 4"></td>
+</tr>
+
+<tr>
+<td>Progetto 5</td>
+<td><input type="checkbox" name="choice" value="Progetto 5"></td>
+</tr>
+
+</table>
+
+<button type="submit">Invia voto</button>
+
+</form>
+
+</div>
+
+<script>
+const urlParams = new URLSearchParams(window.location.search);
+const token = urlParams.get("token");
+
+document.getElementById("voteForm").addEventListener("submit", async function(e) {
+  e.preventDefault();
+
+  // Prende solo i checkbox selezionati
+  const checked = document.querySelectorAll("input[name='choice']:checked");
+
+  if (checked.length === 0) {
+    alert("Seleziona almeno un progetto");
+    return;
+  }
+
+  if (checked.length > 2) {
+    alert("Puoi votare massimo 2 progetti");
+    return;
+  }
+
+  let errors = [];
+  let successCount = 0;
+
+  // invia un voto per ogni progetto selezionato
+  for (let c of checked) {
+    const res = await fetch("/vote", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        token: token,
+        choice: c.value
+      })
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      successCount++;
+    } else {
+      errors.push(`${c.value}: ${data.error}`);
+    }
+  }
+
+  if (errors.length === 0) {
+    alert(`Voto registrato. Grazie! Hai votato ${successCount} progetto/i.`);
+  } else {
+    alert("Alcuni errori:\n" + errors.join("\n"));
+  }
+
+  // disabilita il form dopo il voto
+  document.getElementById("voteForm").querySelectorAll("input, button").forEach(el => el.disabled = true);
+});
+</script>
+
+</body>
+</html>

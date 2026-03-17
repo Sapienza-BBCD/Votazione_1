@@ -1,199 +1,226 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="it">
 <head>
-
 <meta charset="UTF-8">
 <title>Vota il progetto preferito - LAB2GO</title>
-
 <style>
-
-body{
-font-family: Arial;
-text-align:center;
-background:#f4f6f8;
-margin:0;
+body {
+  font-family: Arial, sans-serif;
+  background: #e6f0ff;
+  margin: 0;
+  text-align: center;
 }
-
-header{
-display:flex;
-justify-content:space-between;
-align-items:center;
-padding:10px 30px;
-background:white;
-box-shadow:0 2px 5px rgba(0,0,0,0.1);
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background: #003366;
+  color: white;
+  flex-wrap: wrap;
 }
-
-.logo{
-height:60px;
+.logo {
+  height: 60px;
+  margin: 5px;
 }
-
-.container{
-margin-top:40px;
+.container {
+  max-width: 1000px;
+  margin: 30px auto;
+  padding: 0 10px;
 }
-
-h1{
-font-size:36px;
-color: #630;
-font-weight: bold;
+h1 {
+  font-size: 32px;
+  color: #003366;
 }
-
-.info{
-background:white;
-padding:15px;
-margin:20px auto;
-width:60%;
-border-radius:10px;
-box-shadow:0 2px 5px rgba(0,0,0,0.1);
-color: #630;
+h2 {
+  font-size: 24px;
+  margin-bottom: 15px;
+  color: #fff;
 }
-
-table{
-margin:auto;
-border-collapse:collapse;
-background:white;
-box-shadow:0 2px 5px rgba(0,0,0,0.1);
+.info {
+  background: #ffffffcc;
+  padding: 15px;
+  margin: 20px auto;
+  border-radius: 10px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
-
-td{
-padding:24px 40px;
-border-bottom:1px solid #ddd;
-color: #630;
-font-size: 24px;
-font-weight: bold;
+.percorso {
+  border-radius: 10px;
+  margin-bottom: 30px;
+  padding: 15px;
+  color: #fff;
 }
-
-button{
-margin-top:30px;
-padding:12px 30px;
-font-size:18px;
-background:#007BFF;
-color:white;
-border:none;
-border-radius:8px;
-cursor:pointer;
+.table-container {
+  background: #ffffffcc;
+  border-radius: 8px;
+  padding: 10px;
+  margin-top: 10px;
+  display: inline-block;
+  width: 100%;
+  overflow-x: auto;
 }
-
-button:hover{
-background:#0056b3;
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 250px;
 }
+td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+}
+button {
+  margin-top: 20px;
+  padding: 12px 30px;
+  font-size: 18px;
+  background: #007BFF;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+button:hover {
+  background: #0056b3;
+}
+/* Colori per ogni percorso */
+.percorso-botanica { background: #4CAF50; }
+.percorso-biologia { background: #2196F3; }
+.percorso-chimica { background: #FF9800; }
+.percorso-fisica { background: #9C27B0; }
+.percorso-robotita { background: #795548; }
+.percorso-terra { background: #607D8B; }
+.percorso-musei { background: #F44336; }
 
+/* Responsive */
+@media (max-width: 768px) {
+  header { flex-direction: column; }
+  h1 { font-size: 28px; }
+  h2 { font-size: 20px; }
+  .logo { height: 50px; }
+  button { width: 90%; font-size: 16px; }
+}
 </style>
-
 </head>
-
 <body>
 
 <header>
-
 <img src="logo1.png" class="logo">
 <img src="logo2.png" class="logo">
-
 </header>
 
 <div class="container">
-
 <h1>Vota il progetto preferito - LAB2GO</h1>
 
 <div class="info">
-
-Il QR code è monouso.  
-Una volta inviato il voto **non sarà possibile modificarlo**.  
-Puoi votare **massimo 2 progetti**.
-
+Il QR code è monouso.<br>
+Una volta inviato il voto <b>non sarà possibile modificarlo</b>.<br>
+Puoi votare <b>massimo 2 progetti</b>.
 </div>
 
-<form id="voteForm">
-
-<p>&nbsp;</p>
-<table>
-
-<tr>
-<td>Progetto 1</td>
-<td><input type="checkbox" name="choice" value="Progetto 1"></td>
-</tr>
-
-<tr>
-<td>Progetto 2</td>
-<td><input type="checkbox" name="choice" value="Progetto 2"></td>
-</tr>
-
-<tr>
-<td>Progetto 3</td>
-<td><input type="checkbox" name="choice" value="Progetto 3"></td>
-</tr>
-
-<tr>
-<td>Progetto 4</td>
-<td><input type="checkbox" name="choice" value="Progetto 4"></td>
-</tr>
-
-<tr>
-<td>Progetto 5</td>
-<td><input type="checkbox" name="choice" value="Progetto 5"></td>
-</tr>
-
-</table>
-
-<button type="submit">Invia voto</button>
-
-</form>
+<div id="voteContainer"></div>
 
 </div>
 
 <script>
+const percorsi = {
+  "Botanica": ["Pietrobono", "Galilei", "Morgani", "Ferro"],
+  "Biologia Animale": ["Socrate", "Bottardi", "Keynes"],
+  "Chimica": ["Mamiani", "Pertini Falcone", "Cavour", "Garibaldi", "Torricelli", "Montessori"],
+  "Fisica": ["Francesco d'Assisi", "Cornelio Tacito", "Lorenzo Rocci", "Vittoria Colonna",
+             "Sandro Pertini", "Gaetano De Santis", "Nomentano", "Righi", "Lucrezio Caro", "Vian",
+             "Polo Liceale Alighieri", "Giulio Cesare", "Albertelli"],
+  "Robotita": [],
+  "Scienze della Terra": ["Labriola", "Galileo Galilei", "Levi Ciita"],
+  "Progetto Musei": ["Massimo", "Vittoria Colonna", "Pertini"]
+};
+
+const percorsoClassi = {
+  "Botanica": "percorso-botanica",
+  "Biologia Animale": "percorso-biologia",
+  "Chimica": "percorso-chimica",
+  "Fisica": "percorso-fisica",
+  "Robotita": "percorso-robotita",
+  "Scienze della Terra": "percorso-terra",
+  "Progetto Musei": "percorso-musei"
+};
+
 const urlParams = new URLSearchParams(window.location.search);
 const token = urlParams.get("token");
+const MAX_VOTES = 2;
 
-document.getElementById("voteForm").addEventListener("submit", async function(e) {
+const voteContainer = document.getElementById("voteContainer");
+
+for (let percorso in percorsi) {
+  const scuole = percorsi[percorso];
+  const divPercorso = document.createElement("div");
+  divPercorso.className = `percorso ${percorsoClassi[percorso]}`;
+
+  const h2 = document.createElement("h2");
+  h2.innerText = percorso;
+  divPercorso.appendChild(h2);
+
+  if (scuole.length > 0) {
+    const tableDiv = document.createElement("div");
+    tableDiv.className = "table-container";
+    const table = document.createElement("table");
+    scuole.forEach(scuola => {
+      const tr = document.createElement("tr");
+      const tdNome = document.createElement("td");
+      tdNome.innerText = scuola;
+      tr.appendChild(tdNome);
+
+      const tdCheck = document.createElement("td");
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.name = "choice";
+      input.value = `${percorso} - ${scuola}`;
+      tdCheck.appendChild(input);
+      tr.appendChild(tdCheck);
+
+      table.appendChild(tr);
+    });
+    tableDiv.appendChild(table);
+    divPercorso.appendChild(tableDiv);
+  } else {
+    const p = document.createElement("p");
+    p.innerText = "Nessuna scuola iscritta";
+    divPercorso.appendChild(p);
+  }
+
+  voteContainer.appendChild(divPercorso);
+}
+
+const form = document.createElement("form");
+form.id = "voteForm";
+const submit = document.createElement("button");
+submit.type = "submit";
+submit.innerText = "Invia voto";
+form.appendChild(submit);
+voteContainer.appendChild(form);
+
+form.addEventListener("submit", async function(e) {
   e.preventDefault();
-
-  // Prende solo i checkbox selezionati
   const checked = document.querySelectorAll("input[name='choice']:checked");
-
   if (checked.length === 0) {
     alert("Seleziona almeno un progetto");
     return;
   }
-
-  if (checked.length > 2) {
-    alert("Puoi votare massimo 2 progetti");
+  if (checked.length > MAX_VOTES) {
+    alert(`Puoi votare massimo ${MAX_VOTES} progetti`);
     return;
   }
 
-  let errors = [];
-  let successCount = 0;
+  const choices = Array.from(checked).map(c => c.value);
 
-  // invia un voto per ogni progetto selezionato
-  for (let c of checked) {
-    const res = await fetch("/vote", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        token: token,
-        choice: c.value
-      })
-    });
+  const res = await fetch("/vote", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, choice: choices.join(", ") })
+  });
 
-    const data = await res.json();
-
-    if (data.success) {
-      successCount++;
-    } else {
-      errors.push(`${c.value}: ${data.error}`);
-    }
-  }
-
-  if (errors.length === 0) {
-    alert(`Voto registrato. Grazie! Hai votato ${successCount} progetto/i.`);
-  } else {
-    alert("Alcuni errori:\n" + errors.join("\n"));
-  }
-
-  // disabilita il form dopo il voto
-  document.getElementById("voteForm").querySelectorAll("input, button").forEach(el => el.disabled = true);
+  const data = await res.json();
+  if (data.success) alert("Voto registrato. Grazie!");
+  else alert(data.error);
 });
 </script>
 
