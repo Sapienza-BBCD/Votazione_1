@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Vota il progetto preferito - LAB2GO</title>
+
 <style>
 body {
   font-family: Arial, sans-serif;
@@ -10,26 +11,54 @@ body {
   margin: 0;
   text-align: center;
 }
+
+/* HEADER FISSO */
 header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: #ffffff;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 10px 20px;
-  background: #003366;
-  color: bordeaux;
-  flex-wrap: wrap;
+  z-index: 1000;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
+
 .logo {
   height: 60px;
-  margin: 5px;
 }
+
+/* BARRA GRIGIA */
+.separator {
+  position: fixed;
+  top: 80px;
+  width: 100%;
+  height: 6px;
+  background: #e0e0e0;
+  z-index: 999;
+}
+
+/* CONTENUTO */
 .container {
   max-width: 1000px;
-  margin: 30px auto;
+  margin: 140px auto 30px auto; /* spazio per header */
   padding: 0 10px;
 }
-h1 { font-size: 32px; color: #003366; }
-h2 { font-size: 24px; margin-bottom: 15px; color: #fff; }
+
+h1 {
+  font-size: 32px;
+  color: #003366;
+}
+
+h2 {
+  font-size: 24px;
+  margin-bottom: 15px;
+  color: #fff;
+}
+
 .info {
   background: #ffffffcc;
   padding: 15px;
@@ -37,12 +66,14 @@ h2 { font-size: 24px; margin-bottom: 15px; color: #fff; }
   border-radius: 10px;
   box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
+
 .percorso {
   border-radius: 10px;
   margin-bottom: 30px;
   padding: 15px;
   color: #fff;
 }
+
 .table-container {
   background: #ffffffcc;
   border-radius: 8px;
@@ -52,14 +83,37 @@ h2 { font-size: 24px; margin-bottom: 15px; color: #fff; }
   width: 100%;
   overflow-x: auto;
 }
-table { border-collapse: collapse; width: 100%; min-width: 250px; }
-td { padding: 8px 12px; border-bottom: 1px solid #ddd; text-align: left; color: #800000; font-weight: bold; }
-button {
-  margin-top: 20px; padding: 12px 30px; font-size: 18px;
-  background: #007BFF; color: white; border: none; border-radius: 8px; cursor: pointer;
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 250px;
 }
-button:hover { background: #0056b3; }
-/* Colori per ogni percorso */
+
+td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+  color: #800000; /* BORDEAUX */
+  font-weight: bold;
+}
+
+button {
+  margin-top: 20px;
+  padding: 12px 30px;
+  font-size: 18px;
+  background: #007BFF;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #0056b3;
+}
+
+/* COLORI PERCORSI */
 .percorso-biologia { background: #2196F3; }
 .percorso-botanica { background: #4CAF50; }
 .percorso-chimica { background: #FF9800; }
@@ -67,7 +121,8 @@ button:hover { background: #0056b3; }
 .percorso-musei { background: #F44336; }
 .percorso-robotita { background: #795548; }
 .percorso-terra { background: #607D8B; }
-/* Responsive */
+
+/* RESPONSIVE */
 @media (max-width: 768px) {
   header { flex-direction: column; }
   h1 { font-size: 28px; }
@@ -77,14 +132,18 @@ button:hover { background: #0056b3; }
 }
 </style>
 </head>
+
 <body>
 
 <header>
-<img src="logo1.png" class="logo">
-<img src="logo2.png" class="logo">
+  <img src="logo1.png" class="logo">
+  <img src="logo2.png" class="logo">
 </header>
 
+<div class="separator"></div>
+
 <div class="container">
+
 <h1>Vota il progetto preferito - LAB2GO</h1>
 
 <div class="info">
@@ -94,6 +153,7 @@ Puoi votare <b>massimo 2 progetti</b>.
 </div>
 
 <div id="voteContainer"></div>
+
 </div>
 
 <script>
@@ -122,12 +182,14 @@ const percorsoClassi = {
 const urlParams = new URLSearchParams(window.location.search);
 const token = urlParams.get("token");
 const MAX_VOTES = 2;
+
 const voteContainer = document.getElementById("voteContainer");
 
-// Ordina percorsi alfabeticamente
+// ORDINE ALFABETICO
 const percorsiOrdinati = Object.keys(percorsi).sort();
 
 percorsiOrdinati.forEach(percorso => {
+
   const scuole = percorsi[percorso];
   const divPercorso = document.createElement("div");
   divPercorso.className = `percorso ${percorsoClassi[percorso]}`;
@@ -137,25 +199,35 @@ percorsiOrdinati.forEach(percorso => {
   divPercorso.appendChild(h2);
 
   if (scuole.length > 0) {
+
     const tableDiv = document.createElement("div");
     tableDiv.className = "table-container";
+
     const table = document.createElement("table");
+
     scuole.forEach(scuola => {
       const tr = document.createElement("tr");
+
       const tdNome = document.createElement("td");
-      tdNome.innerText = scuola; // colore già impostato in CSS
+      tdNome.innerText = scuola;
+
       const tdCheck = document.createElement("td");
       const input = document.createElement("input");
       input.type = "checkbox";
       input.name = "choice";
       input.value = `${percorso} - ${scuola}`;
+
       tdCheck.appendChild(input);
+
       tr.appendChild(tdNome);
       tr.appendChild(tdCheck);
+
       table.appendChild(tr);
     });
+
     tableDiv.appendChild(table);
     divPercorso.appendChild(tableDiv);
+
   } else {
     const p = document.createElement("p");
     p.innerText = "Nessuna scuola iscritta";
@@ -165,29 +237,47 @@ percorsiOrdinati.forEach(percorso => {
   voteContainer.appendChild(divPercorso);
 });
 
-// Form per invio voto
+// FORM INVIO
 const form = document.createElement("form");
 form.id = "voteForm";
+
 const submit = document.createElement("button");
 submit.type = "submit";
 submit.innerText = "Invia voto";
+
 form.appendChild(submit);
 voteContainer.appendChild(form);
 
+// INVIO VOTO
 form.addEventListener("submit", async function(e) {
+
   e.preventDefault();
+
   const checked = document.querySelectorAll("input[name='choice']:checked");
-  if (checked.length === 0) { alert("Seleziona almeno un progetto"); return; }
-  if (checked.length > MAX_VOTES) { alert(`Puoi votare massimo ${MAX_VOTES} progetti`); return; }
+
+  if (checked.length === 0) {
+    alert("Seleziona almeno un progetto");
+    return;
+  }
+
+  if (checked.length > MAX_VOTES) {
+    alert(`Puoi votare massimo ${MAX_VOTES} progetti`);
+    return;
+  }
+
   const choices = Array.from(checked).map(c => c.value);
+
   const res = await fetch("/vote", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ token, choice: choices.join(", ") })
   });
+
   const data = await res.json();
+
   if (data.success) alert("Voto registrato. Grazie!");
   else alert(data.error);
+
 });
 </script>
 
