@@ -16,7 +16,7 @@ header {
   align-items: center;
   padding: 10px 20px;
   background: #003366;
-  color: white;
+  color: bordeaux;
   flex-wrap: wrap;
 }
 .logo {
@@ -83,13 +83,14 @@ button:hover {
   background: #0056b3;
 }
 /* Colori per ogni percorso */
-.percorso-botanica { background: #4CAF50; }
 .percorso-biologia { background: #2196F3; }
+.percorso-botanica { background: #4CAF50; }
 .percorso-chimica { background: #FF9800; }
 .percorso-fisica { background: #9C27B0; }
+.percorso-musei { background: #F44336; }
 .percorso-robotita { background: #795548; }
 .percorso-terra { background: #607D8B; }
-.percorso-musei { background: #F44336; }
+
 
 /* Responsive */
 @media (max-width: 768px) {
@@ -123,25 +124,27 @@ Puoi votare <b>massimo 2 progetti</b>.
 
 <script>
 const percorsi = {
-  "Botanica": ["Pietrobono", "Galilei", "Morgani", "Ferro"],
   "Biologia Animale": ["Socrate", "Bottardi", "Keynes"],
+  "Botanica": ["Pietrobono", "Galilei", "Morgani", "Ferro"],
   "Chimica": ["Mamiani", "Pertini Falcone", "Cavour", "Garibaldi", "Torricelli", "Montessori"],
   "Fisica": ["Francesco d'Assisi", "Cornelio Tacito", "Lorenzo Rocci", "Vittoria Colonna",
              "Sandro Pertini", "Gaetano De Santis", "Nomentano", "Righi", "Lucrezio Caro", "Vian",
              "Polo Liceale Alighieri", "Giulio Cesare", "Albertelli"],
+  "Progetto Musei": ["Massimo", "Vittoria Colonna", "Pertini"]
   "Robotita": [],
   "Scienze della Terra": ["Labriola", "Galileo Galilei", "Levi Ciita"],
-  "Progetto Musei": ["Massimo", "Vittoria Colonna", "Pertini"]
+
 };
 
 const percorsoClassi = {
-  "Botanica": "percorso-botanica",
   "Biologia Animale": "percorso-biologia",
+  "Botanica": "percorso-botanica",
   "Chimica": "percorso-chimica",
   "Fisica": "percorso-fisica",
+  "Progetto Musei": "percorso-musei"
   "Robotita": "percorso-robotita",
   "Scienze della Terra": "percorso-terra",
-  "Progetto Musei": "percorso-musei"
+
 };
 
 const urlParams = new URLSearchParams(window.location.search);
