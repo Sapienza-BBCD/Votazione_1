@@ -28,15 +28,8 @@ header {
   margin: 30px auto;
   padding: 0 10px;
 }
-h1 {
-  font-size: 32px;
-  color: #003366;
-}
-h2 {
-  font-size: 24px;
-  margin-bottom: 15px;
-  color: #fff;
-}
+h1 { font-size: 32px; color: #003366; }
+h2 { font-size: 24px; margin-bottom: 15px; color: #fff; }
 .info {
   background: #ffffffcc;
   padding: 15px;
@@ -59,29 +52,13 @@ h2 {
   width: 100%;
   overflow-x: auto;
 }
-table {
-  border-collapse: collapse;
-  width: 100%;
-  min-width: 250px;
-}
-td {
-  padding: 8px 12px;
-  border-bottom: 1px solid #ddd;
-  text-align: left;
-}
+table { border-collapse: collapse; width: 100%; min-width: 250px; }
+td { padding: 8px 12px; border-bottom: 1px solid #ddd; text-align: left; color: #800000; font-weight: bold; }
 button {
-  margin-top: 20px;
-  padding: 12px 30px;
-  font-size: 18px;
-  background: #007BFF;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
+  margin-top: 20px; padding: 12px 30px; font-size: 18px;
+  background: #007BFF; color: white; border: none; border-radius: 8px; cursor: pointer;
 }
-button:hover {
-  background: #0056b3;
-}
+button:hover { background: #0056b3; }
 /* Colori per ogni percorso */
 .percorso-biologia { background: #2196F3; }
 .percorso-botanica { background: #4CAF50; }
@@ -90,8 +67,6 @@ button:hover {
 .percorso-musei { background: #F44336; }
 .percorso-robotita { background: #795548; }
 .percorso-terra { background: #607D8B; }
-
-
 /* Responsive */
 @media (max-width: 768px) {
   header { flex-direction: column; }
@@ -119,7 +94,6 @@ Puoi votare <b>massimo 2 progetti</b>.
 </div>
 
 <div id="voteContainer"></div>
-
 </div>
 
 <script>
@@ -130,10 +104,9 @@ const percorsi = {
   "Fisica": ["Francesco d'Assisi", "Cornelio Tacito", "Lorenzo Rocci", "Vittoria Colonna",
              "Sandro Pertini", "Gaetano De Santis", "Nomentano", "Righi", "Lucrezio Caro", "Vian",
              "Polo Liceale Alighieri", "Giulio Cesare", "Albertelli"],
-  "Progetto Musei": ["Massimo", "Vittoria Colonna", "Pertini"]
+  "Progetto Musei": ["Massimo", "Vittoria Colonna", "Pertini"],
   "Robotita": [],
-  "Scienze della Terra": ["Labriola", "Galileo Galilei", "Levi Ciita"],
-
+  "Scienze della Terra": ["Labriola", "Galileo Galilei", "Levi Ciita"]
 };
 
 const percorsoClassi = {
@@ -141,19 +114,20 @@ const percorsoClassi = {
   "Botanica": "percorso-botanica",
   "Chimica": "percorso-chimica",
   "Fisica": "percorso-fisica",
-  "Progetto Musei": "percorso-musei"
+  "Progetto Musei": "percorso-musei",
   "Robotita": "percorso-robotita",
-  "Scienze della Terra": "percorso-terra",
-
+  "Scienze della Terra": "percorso-terra"
 };
 
 const urlParams = new URLSearchParams(window.location.search);
 const token = urlParams.get("token");
 const MAX_VOTES = 2;
-
 const voteContainer = document.getElementById("voteContainer");
 
-for (let percorso in percorsi) {
+// Ordina percorsi alfabeticamente
+const percorsiOrdinati = Object.keys(percorsi).sort();
+
+percorsiOrdinati.forEach(percorso => {
   const scuole = percorsi[percorso];
   const divPercorso = document.createElement("div");
   divPercorso.className = `percorso ${percorsoClassi[percorso]}`;
@@ -169,17 +143,15 @@ for (let percorso in percorsi) {
     scuole.forEach(scuola => {
       const tr = document.createElement("tr");
       const tdNome = document.createElement("td");
-      tdNome.innerText = scuola;
-      tr.appendChild(tdNome);
-
+      tdNome.innerText = scuola; // colore già impostato in CSS
       const tdCheck = document.createElement("td");
       const input = document.createElement("input");
       input.type = "checkbox";
       input.name = "choice";
       input.value = `${percorso} - ${scuola}`;
       tdCheck.appendChild(input);
+      tr.appendChild(tdNome);
       tr.appendChild(tdCheck);
-
       table.appendChild(tr);
     });
     tableDiv.appendChild(table);
@@ -191,8 +163,9 @@ for (let percorso in percorsi) {
   }
 
   voteContainer.appendChild(divPercorso);
-}
+});
 
+// Form per invio voto
 const form = document.createElement("form");
 form.id = "voteForm";
 const submit = document.createElement("button");
@@ -204,23 +177,14 @@ voteContainer.appendChild(form);
 form.addEventListener("submit", async function(e) {
   e.preventDefault();
   const checked = document.querySelectorAll("input[name='choice']:checked");
-  if (checked.length === 0) {
-    alert("Seleziona almeno un progetto");
-    return;
-  }
-  if (checked.length > MAX_VOTES) {
-    alert(`Puoi votare massimo ${MAX_VOTES} progetti`);
-    return;
-  }
-
+  if (checked.length === 0) { alert("Seleziona almeno un progetto"); return; }
+  if (checked.length > MAX_VOTES) { alert(`Puoi votare massimo ${MAX_VOTES} progetti`); return; }
   const choices = Array.from(checked).map(c => c.value);
-
   const res = await fetch("/vote", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ token, choice: choices.join(", ") })
   });
-
   const data = await res.json();
   if (data.success) alert("Voto registrato. Grazie!");
   else alert(data.error);
