@@ -261,8 +261,23 @@ form.addEventListener("submit", async function(e) {
     return;
   }
 
+// Controllo numero voti
   if (checked.length > MAX_VOTES) {
     alert(`Puoi votare massimo ${MAX_VOTES} progetti`);
+    return;
+  }
+
+// 🔥 NUOVO CONTROLLO: percorsi diversi
+  const percorsiSelezionati = Array.from(checked).map(c => {
+    return c.value.split(" - ")[0]; // estrae il nome del percorso
+  });
+
+// crea un set (rimuove duplicati)
+  const percorsiUnici = new Set(percorsiSelezionati);
+
+// se ha selezionato 2 voti ma stesso percorso → errore
+  if (checked.length === 2 && percorsiUnici.size === 1) {
+    alert("Puoi votare massimo un progetto per ciascun percorso!");
     return;
   }
 
