@@ -316,17 +316,24 @@ form.addEventListener("submit", async function(e) {
 
     const [percorso, scuola] = scelta.value.split(" - ");
 
-    await fetch("/vote", {
+    const res = await fetch("/vote", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token, percorso, scuola })
     });
 
+    const data = await res.json();
+
+    if (!data.success) {
+      alert(data.error);
+      return;
+    }
+
   }
 
   alert("Voto registrato. Grazie!");
 
-});
+  });
 
 
 </script>
