@@ -32,7 +32,8 @@ db.serialize(() => {
     CREATE TABLE IF NOT EXISTS votes(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       token TEXT,
-      choice TEXT,
+      percorso TEXT,
+      scuola TEXT,
       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -64,25 +65,46 @@ app.get("/", (req, res) => {
 });
 
 // POST /vote
-app.post("/vote", (req, res) => {
-  if (statoVotazione === "pre") return res.json({ error: "La votazione non è ancora aperta" });
-  if (statoVotazione === "closed") return res.json({ error: "La votazione è chiusa" });
+app.post("/vote",(req,res)=>{
 
-  const { token, choice } = req.body;
+  if(statoVotazione === "pre"){
+    return res.json({error:"La votazione non è ancora aperta"});
+  }
 
-  db.get("SELECT * FROM tokens WHERE token=?", [token], (err, row) => {
-    if (err) return res.json({ error: "Errore server" });
-    if (!row) return res.json({ error: "Token non valido" });
+  if(statoVotazione === "closed"){
+    return res.json({error:"La votazione è chiusa"});
+  }
 
-    db.get("SELECT COUNT(*) AS count FROM votes WHERE token=?", [token], (err, result) => {
-      if (result.count >= MAX_VOTES) return res.json({ error: "Hai già usato i tuoi 2 voti" });
+  const {token, percorso, scuola} = req.body;
 
-      db.run("INSERT INTO votes(token, choice) VALUES(?, ?)", [token, choice], (err) => {
-        if (err) return res.json({ error: "Errore server" });
-        res.json({ success: true });
-      });
-    });
+  db.get("SELECT * FROM tokens WHERE token=?",[token],(err,row)=>{
+
+    if(err) return res.json({error:"Errore server"});
+    if(!row) return res.json({error:"Token non valido"});
+
+    db.get(
+      "SELECT COUNT(*) as count FROM votes WHERE token=?",
+      [token],
+      (err,result)=>{
+
+        if(result.count >= MAX_VOTES){
+          return res.json({error:"Hai già usato i tuoi 2 voti"});
+        }
+
+        db.run(
+          "INSERT INTO votes(token, percorso, scuola) VALUES(?,?,?)",
+          [token, percorso, scuola],
+          (err)=>{
+            if(err) return res.json({error:"Errore server"});
+            res.json({success:true});
+          }
+        );
+
+      }
+    );
+
   });
+
 });
 
 // APRI / CHIUDI / RESET votazione
