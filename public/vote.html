@@ -85,6 +85,24 @@ h2 {
   overflow-x: auto;
 }
 
+.top-fixed {
+  position: fixed;
+  top: 120px; /* sotto header + barra */
+  width: 100%;
+  max-width: 1000px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #e6f0ff;
+  z-index: 900;
+  padding-bottom: 10px;
+}
+
+#scrollArea {
+  margin-top: 260px; /* spazio per header + titolo + info */
+  height: calc(100vh - 260px);
+  overflow-y: auto;
+}
+
 table {
   border-collapse: collapse;
   width: 100%;
@@ -120,7 +138,7 @@ button:hover {
 .percorso-chimica { background: #FF9800; }
 .percorso-fisica { background: #9C27B0; }
 .percorso-musei { background: #F44336; }
-.percorso-robotita { background: #795548; }
+.percorso-robotica { background: #795548; }
 .percorso-terra { background: #607D8B; }
 
 /* RESPONSIVE */
@@ -145,15 +163,19 @@ button:hover {
 
 <div class="container">
 
-<h1>Vota il progetto preferito - LAB2GO</h1>
+<div class="top-fixed">
+  <h1>Vota il progetto preferito - LAB2GO</h1>
 
-<div class="info">
-Il QR code è monouso.<br>
-Una volta inviato il voto <b>non sarà possibile modificarlo</b>.<br>
-Puoi votare <b>massimo 2 progetti da scegliere fra 2 percorsi diversi</b>.
+  <div class="info">
+    Il QR code è monouso.<br>
+    Una volta inviato il voto <b>non sarà possibile modificarlo</b>.<br>
+    Puoi votare <b>massimo 2 progetti da scegliere fra due percorsi diversi</b>.
+  </div>
 </div>
 
-<div id="voteContainer"></div>
+<div id="scrollArea">
+  <div id="voteContainer"></div>
+</div>
 
 </div>
 
@@ -166,7 +188,7 @@ const percorsi = {
              "Sandro Pertini", "Gaetano De Santis", "Nomentano", "Righi", "Lucrezio Caro", "Vian",
              "Polo Liceale Alighieri", "Giulio Cesare", "Albertelli"],
   "Progetto Musei": ["Massimo", "Vittoria Colonna", "Pertini"],
-  "Robotita": [],
+  "Robotica": [],
   "Scienze della Terra": ["Labriola", "Galileo Galilei", "Levi Ciita"]
 };
 
@@ -176,7 +198,7 @@ const percorsoClassi = {
   "Chimica": "percorso-chimica",
   "Fisica": "percorso-fisica",
   "Progetto Musei": "percorso-musei",
-  "Robotita": "percorso-robotita",
+  "Robotica": "percorso-robotica",
   "Scienze della Terra": "percorso-terra"
 };
 
