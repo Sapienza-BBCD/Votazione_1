@@ -328,26 +328,7 @@ form.addEventListener("submit", async function(e) {
 
 });
 
-  SELECT scuola, COUNT(*) as votes
-  FROM votes
-  GROUP BY scuola
-  ORDER BY votes DESC
 
-  SELECT percorso, scuola, COUNT(*) as votes
-  FROM votes
-  GROUP BY percorso, scuola
-  ORDER BY percorso, votes DESC
-
-  SELECT percorso, scuola, COUNT(*) as votes
-
-  SELECT COUNT(*) as totale FROM votes
-
-  const data = await res.json();
-
-  if (data.success) alert("Voto registrato. Grazie!");
-  else alert(data.error);
-
-});
 </script>
 
 </body>

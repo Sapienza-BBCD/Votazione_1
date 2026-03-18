@@ -17,17 +17,17 @@ app.use(cors());
 
 // Database
 const db = new sqlite3.Database("votes.db");
+
 const PARTICIPANTI = 300;
 const MAX_VOTES = 2;
-
-// Password admin
 const ADMIN_PASSWORD = "lab2go";
 
-// Stato votazione: pre=open/closed
+// Stato votazione
 let statoVotazione = "pre";
 
-// Creazione tabelle e generazione token
+// --- CREAZIONE DB ---
 db.serialize(() => {
+
   db.run(`
     CREATE TABLE IF NOT EXISTS votes(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,9 +44,7 @@ db.serialize(() => {
     )
   `);
 
-  // Genera token se tabella vuota
   db.get("SELECT COUNT(*) AS count FROM tokens", (err, row) => {
-    if (err) return console.error(err);
     if (row.count === 0) {
       for (let i = 0; i < PARTICIPANTI; i++) {
         const token = uuidv4();
@@ -55,48 +53,49 @@ db.serialize(() => {
       console.log("Token generati:", PARTICIPANTI);
     }
   });
+
 });
 
-// --- ROTTE --- //
+// --- ROUTES ---
 
-// Pagina voto
+// HOME
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "vote.html"));
 });
 
-// POST /vote
-app.post("/vote",(req,res)=>{
+// VOTO
+app.post("/vote", (req, res) => {
 
-  if(statoVotazione === "pre"){
-    return res.json({error:"La votazione non è ancora aperta"});
+  if (statoVotazione === "pre") {
+    return res.json({ error: "La votazione non è ancora aperta" });
   }
 
-  if(statoVotazione === "closed"){
-    return res.json({error:"La votazione è chiusa"});
+  if (statoVotazione === "closed") {
+    return res.json({ error: "La votazione è chiusa" });
   }
 
-  const {token, percorso, scuola} = req.body;
+  const { token, percorso, scuola } = req.body;
 
-  db.get("SELECT * FROM tokens WHERE token=?",[token],(err,row)=>{
+  db.get("SELECT * FROM tokens WHERE token=?", [token], (err, row) => {
 
-    if(err) return res.json({error:"Errore server"});
-    if(!row) return res.json({error:"Token non valido"});
+    if (err) return res.json({ error: "Errore server" });
+    if (!row) return res.json({ error: "Token non valido" });
 
     db.get(
       "SELECT COUNT(*) as count FROM votes WHERE token=?",
       [token],
-      (err,result)=>{
+      (err, result) => {
 
-        if(result.count >= MAX_VOTES){
-          return res.json({error:"Hai già usato i tuoi 2 voti"});
+        if (result.count >= MAX_VOTES) {
+          return res.json({ error: "Hai già usato i tuoi 2 voti" });
         }
 
         db.run(
           "INSERT INTO votes(token, percorso, scuola) VALUES(?,?,?)",
           [token, percorso, scuola],
-          (err)=>{
-            if(err) return res.json({error:"Errore server"});
-            res.json({success:true});
+          (err) => {
+            if (err) return res.json({ error: "Errore server" });
+            res.json({ success: true });
           }
         );
 
@@ -107,39 +106,75 @@ app.post("/vote",(req,res)=>{
 
 });
 
-// APRI / CHIUDI / RESET votazione
-app.get("/open-vote", (req, res) => { statoVotazione = "open"; res.send("Votazione APERTA"); });
-app.get("/close-vote", (req, res) => { statoVotazione = "closed"; res.send("Votazione CHIUSA"); });
-app.get("/reset-vote", (req, res) => { statoVotazione = "pre"; res.send("Votazione NON ANCORA APERTA"); });
-
-// Dati risultati JSON
-app.get("/results-data", (req, res) => {
-  db.all(
-    "SELECT choice, COUNT(*) AS votes FROM votes GROUP BY choice", 
-    (err, rows) => {
-    if (err) return res.json({ error: "Errore server" });
-    res.json(rows);
-  });
+// --- CONTROLLO VOTAZIONE ---
+app.get("/open-vote", (req, res) => {
+  statoVotazione = "open";
+  res.send("Votazione APERTA");
 });
 
-// Visualizzazione risultati live
+app.get("/close-vote", (req, res) => {
+  statoVotazione = "closed";
+  res.send("Votazione CHIUSA");
+});
+
+app.get("/reset-vote", (req, res) => {
+  statoVotazione = "pre";
+  res.send("Votazione NON ANCORA APERTA");
+});
+
+// --- RESET VOTI (IMPORTANTISSIMO) ---
+app.get("/reset-votes", (req, res) => {
+  db.run("DELETE FROM votes");
+  res.send("Voti resettati");
+});
+
+// --- RISULTATI JSON (CORRETTO) ---
+app.get("/results-data", (req, res) => {
+
+  db.all(`
+    SELECT percorso, scuola, COUNT(*) as votes
+    FROM votes
+    GROUP BY percorso, scuola
+    ORDER BY percorso, votes DESC
+  `, (err, rows) => {
+
+    if (err) return res.json({ error: "Errore server" });
+
+    db.get("SELECT COUNT(*) as totale FROM votes", (err2, tot) => {
+
+      res.json({
+        totale: tot.totale,
+        risultati: rows
+      });
+
+    });
+
+  });
+
+});
+
+// --- PAGINA RISULTATI ---
 app.get("/results-view", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "results-view.html"));
 });
 
-// Admin: richiesta password
+// --- ADMIN LOGIN PAGE ---
 app.get("/admin", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin-login.html"));
 });
 
-// Admin con password
+// --- LOGIN ADMIN ---
 app.post("/admin-login", (req, res) => {
   const { password } = req.body;
-  if (password !== ADMIN_PASSWORD) return res.json({ error: "Password errata" });
+
+  if (password !== ADMIN_PASSWORD) {
+    return res.json({ error: "Password errata" });
+  }
+
   res.json({ success: true });
 });
 
-// Lista token (solo admin/debug)
+// --- TOKEN LIST ---
 app.get("/tokens", (req, res) => {
   db.all("SELECT token FROM tokens", (err, rows) => {
     if (err) return res.json({ error: "Errore server" });
@@ -147,50 +182,83 @@ app.get("/tokens", (req, res) => {
   });
 });
 
-// ZIP QR
+// --- DOWNLOAD QR ZIP ---
 app.get("/download-qrs", async (req, res) => {
+
   res.attachment("qrcodes.zip");
+
   const archive = archiver("zip");
   archive.pipe(res);
 
   db.all("SELECT token FROM tokens", async (err, rows) => {
+
     for (let i = 0; i < rows.length; i++) {
+
       const token = rows[i].token;
       const url = `https://votazione-1.onrender.com/?token=${token}`;
+
       const qr = await QRCode.toBuffer(url);
+
       archive.append(qr, { name: `qr-${i + 1}.png` });
     }
+
     archive.finalize();
   });
+
 });
 
-// PDF QR
+// --- PDF QR ---
 app.get("/print-qrs", async (req, res) => {
+
   const doc = new PDFDocument({ margin: 30 });
+
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", "inline; filename=qrcodes.pdf");
+
   doc.pipe(res);
 
   db.all("SELECT token FROM tokens", async (err, rows) => {
-    const perRow = 3, size = 150;
-    let x = 50, y = 50, count = 0;
+
+    const perRow = 3;
+    const size = 150;
+
+    let x = 50;
+    let y = 50;
+    let count = 0;
 
     for (let i = 0; i < rows.length; i++) {
+
       const token = rows[i].token;
       const url = `https://votazione-1.onrender.com/?token=${token}`;
+
       const qr = await QRCode.toDataURL(url);
+
       const base64 = qr.replace(/^data:image\/png;base64,/, "");
       const img = Buffer.from(base64, "base64");
 
       doc.image(img, x, y, { width: size });
-      count++; x += 180;
 
-      if (count % perRow === 0) { x = 50; y += 200; }
-      if (y > 700) { doc.addPage(); x = 50; y = 50; }
+      count++;
+      x += 180;
+
+      if (count % perRow === 0) {
+        x = 50;
+        y += 200;
+      }
+
+      if (y > 700) {
+        doc.addPage();
+        x = 50;
+        y = 50;
+      }
     }
+
     doc.end();
   });
+
 });
 
-// Avvio server
-app.listen(PORT, () => console.log(`Server attivo su porta ${PORT}`));
+// --- START SERVER ---
+app.listen(PORT, () => {
+  console.log("Server attivo su porta", PORT);
+});
