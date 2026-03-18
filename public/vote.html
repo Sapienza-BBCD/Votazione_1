@@ -103,6 +103,17 @@ h2 {
   overflow-y: auto;
 }
 
+.blink {
+  animation: lampeggio 1.2s infinite;
+  font-weight: bold;
+}
+
+@keyframes lampeggio {
+  0%   { color: #822433; }   /* colore attuale (bordeaux) */
+  50%  { color: #003366; }   /* colore accattivante (blu) */
+  100% { color: #822433; }
+}
+
 table {
   border-collapse: collapse;
   width: 100%;
@@ -169,7 +180,7 @@ button:hover {
   <div class="info">
     Il QR code è monouso.<br>
     Una volta inviato il voto <b>non sarà possibile modificarlo</b>.<br>
-    Puoi votare <b>massimo 2 progetti da scegliere fra due percorsi diversi</b>.
+    Puoi votare <b class="blink">massimo 2 progetti da scegliere fra due percorsi diversi</b>.
   </div>
 </div>
 
