@@ -208,52 +208,103 @@ app.get("/download-qrs", async (req, res) => {
 });
 
 // --- PDF QR ---
-app.get("/print-qrs", async (req, res) => {
+app.get("/print-qrs", async (req,res)=>{
 
-  const doc = new PDFDocument({ margin: 30 });
+  const doc = new PDFDocument({margin:30});
 
-  res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", "inline; filename=qrcodes.pdf");
+  res.setHeader("Content-Type","application/pdf");
+  res.setHeader("Content-Disposition","inline; filename=qrcodes.pdf");
 
   doc.pipe(res);
 
-  db.all("SELECT token FROM tokens", async (err, rows) => {
+  db.all("SELECT token FROM tokens", async (err,rows)=>{
 
     const perRow = 3;
-    const size = 150;
+    const perCol = 4;
+    const size = 120;
+    const padding = 40;
 
-    let x = 50;
-    let y = 50;
-    let count = 0;
+    let col = 0;
+    let row = 0;
 
-    for (let i = 0; i < rows.length; i++) {
+    for(let i=0;i<rows.length;i++){
 
       const token = rows[i].token;
       const url = `https://votazione-1.onrender.com/?token=${token}`;
 
       const qr = await QRCode.toDataURL(url);
+      const base64 = qr.replace(/^data:image\/png;base64,/,"");
+      const img = Buffer.from(base64,"base64");
 
-      const base64 = qr.replace(/^data:image\/png;base64,/, "");
-      const img = Buffer.from(base64, "base64");
+      const x = 50 + col * (size + padding);
+      const y = 50 + row * (size + 70);
 
-      doc.image(img, x, y, { width: size });
+      // QR
+      doc.image(img,x,y,{width:size});
 
-      count++;
-      x += 180;
+      // NUMERO
+      doc.fontSize(10);
+      doc.text(`QR ${i+1}`, x, y + size + 5, {
+        width: size,
+        align: "center"
+      });
 
-      if (count % perRow === 0) {
-        x = 50;
-        y += 200;
+      // CROCI DI TAGLIO
+      const offset = 5;
+
+      // alto sinistra
+      doc.moveTo(x - offset, y)
+         .lineTo(x - offset, y + 15)
+         .stroke();
+
+      doc.moveTo(x - offset, y)
+         .lineTo(x + 15, y)
+         .stroke();
+
+      // alto destra
+      doc.moveTo(x + size + offset, y)
+         .lineTo(x + size + offset, y + 15)
+         .stroke();
+
+      doc.moveTo(x + size + offset, y)
+         .lineTo(x + size - 15, y)
+         .stroke();
+
+      // basso sinistra
+      doc.moveTo(x - offset, y + size)
+         .lineTo(x - offset, y + size - 15)
+         .stroke();
+
+      doc.moveTo(x - offset, y + size)
+         .lineTo(x + 15, y + size)
+         .stroke();
+
+      // basso destra
+      doc.moveTo(x + size + offset, y + size)
+         .lineTo(x + size + offset, y + size - 15)
+         .stroke();
+
+      doc.moveTo(x + size + offset, y + size)
+         .lineTo(x + size - 15, y + size)
+         .stroke();
+
+      col++;
+
+      if(col === perRow){
+        col = 0;
+        row++;
       }
 
-      if (y > 700) {
+      if(row === perCol){
         doc.addPage();
-        x = 50;
-        y = 50;
+        col = 0;
+        row = 0;
       }
+
     }
 
     doc.end();
+
   });
 
 });
