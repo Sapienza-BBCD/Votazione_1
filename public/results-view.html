@@ -48,6 +48,11 @@ h1 {
   width: 30%;
   padding: 10px;
   border-radius: 10px;
+  transition: transform 0.3s;
+}
+
+.podio div:hover {
+  transform: scale(1.05);
 }
 
 .first { background: gold; color: black; }
@@ -85,11 +90,60 @@ td {
 <div id="resultsContainer"></div>
 
 <script>
+
+// 🔥 MAPPATURA CONTRIBUTI (percorso + scuola)
+const contributi = {
+  "Biologia Animale|Bottardi": "Orale",
+  "Biologia Animale|Keynes": "Esperienza",
+  "Biologia Animale|Socrate": "Poster",
+
+  "Botanica|Levi Civita": "Orale",  
+  "Botanica|Majorana": "Poster",
+  "Botanica|Neumann": "Poster",
+  "Botanica|Perini Falcone": "Poster",
+  "Botanica|Righi": "Poster",
+
+  "Chimica|Cavour": "Poster",
+  "Chimica|Garibaldi": "Poster",
+  "Chimica|Mamiani": "Poster",
+  "Chimica|Montessori": "Orale",
+  "Chimica|Torricelli": "Orale",
+
+  "Fisica|Albertelli": "Orale",    
+  "Fisica|Cornelio Tacito": "Esperienza",
+  "Fisica|De Santis": "Esperienza",
+  "Fisica|Francesco d'Assisi": "Esperienza",
+  "Fisica|Giulio Cesare": "Orale",    
+  "Fisica|Lorenzo Rocci": "Orale",
+  "Fisica|Lucrezio Caro": "Esperienza",
+  "Fisica|Sandro Pertini": "Esperienza",
+  "Fisica|Nomentano": "Orale",
+  "Fisica|Polo Liceale Alighieri": "Orale",
+  "Fisica|Righi": "Orale",
+  "Fisica|Vian": "Esperienza",
+  "Fisica|Vittoria Colonna": "Orale",
+
+  "Progetto Musei|Massimo": "Poster",
+  "Progetto Musei|Pertini": "Orale"
+  "Progetto Musei|Vittoria Colonna": "Orale",
+
+  "Scienze della Terra|Galileo Galilei": "Poster",
+  "Scienze della Terra|Labriola": "Poster",
+  "Scienze della Terra|Levi Civita": "Poster",  
+};
+
+// funzione helper
+function getContributo(percorso, scuola) {
+  return contributi[`${percorso}|${scuola}`] || "";
+}
+
+// FETCH DATI
 async function fetchResults() {
   const res = await fetch("/results-data");
   return await res.json();
 }
 
+// RENDER
 function renderResults(data) {
 
   const container = document.getElementById("resultsContainer");
@@ -111,7 +165,7 @@ function renderResults(data) {
 
     const elenco = grouped[percorso];
 
-    // ordina per voti DESC
+    // ordina
     elenco.sort((a,b) => b.votes - a.votes);
 
     const div = document.createElement("div");
@@ -121,30 +175,45 @@ function renderResults(data) {
     titolo.innerText = percorso;
     div.appendChild(titolo);
 
-    // PODIO (primi 3)
+    // PODIO
     const podio = document.createElement("div");
     podio.className = "podio";
 
     if (elenco[0]) {
-      podio.innerHTML += `<div class="first">🥇 ${elenco[0].scuola}<br>${elenco[0].votes} voti</div>`;
+      podio.innerHTML += `
+        <div class="first">
+          🥇 ${elenco[0].scuola} - ${getContributo(percorso, elenco[0].scuola)}<br>
+          ${elenco[0].votes} voti
+        </div>`;
     }
+
     if (elenco[1]) {
-      podio.innerHTML += `<div class="second">🥈 ${elenco[1].scuola}<br>${elenco[1].votes} voti</div>`;
+      podio.innerHTML += `
+        <div class="second">
+          🥈 ${elenco[1].scuola} - ${getContributo(percorso, elenco[1].scuola)}<br>
+          ${elenco[1].votes} voti
+        </div>`;
     }
+
     if (elenco[2]) {
-      podio.innerHTML += `<div class="third">🥉 ${elenco[2].scuola}<br>${elenco[2].votes} voti</div>`;
+      podio.innerHTML += `
+        <div class="third">
+          🥉 ${elenco[2].scuola} - ${getContributo(percorso, elenco[2].scuola)}<br>
+          ${elenco[2].votes} voti
+        </div>`;
     }
 
     div.appendChild(podio);
 
-    // TABELLA COMPLETA
+    // TABELLA
     const table = document.createElement("table");
 
     elenco.forEach(r => {
+
       const tr = document.createElement("tr");
 
       const td1 = document.createElement("td");
-      td1.innerText = r.scuola;
+      td1.innerText = `${r.scuola} - ${getContributo(r.percorso, r.scuola)}`;
 
       const td2 = document.createElement("td");
       td2.innerHTML =
@@ -161,7 +230,7 @@ function renderResults(data) {
   }
 }
 
-// aggiornamento live
+// AGGIORNAMENTO LIVE
 async function update(){
   const data = await fetchResults();
   renderResults(data);
@@ -169,6 +238,7 @@ async function update(){
 
 update();
 setInterval(update, 2000);
+
 </script>
 
 </body>

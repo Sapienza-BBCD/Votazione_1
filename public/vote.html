@@ -192,15 +192,52 @@ button:hover {
 
 <script>
 const percorsi = {
-  "Biologia Animale": ["Socrate", "Bottardi", "Keynes"],
-  "Botanica": ["Pietrobono", "Galilei", "Morgani", "Ferro"],
-  "Chimica": ["Mamiani", "Pertini Falcone", "Cavour", "Garibaldi", "Torricelli", "Montessori"],
-  "Fisica": ["Francesco d'Assisi", "Cornelio Tacito", "Lorenzo Rocci", "Vittoria Colonna",
-             "Sandro Pertini", "Gaetano De Santis", "Nomentano", "Righi", "Lucrezio Caro", "Vian",
-             "Polo Liceale Alighieri", "Giulio Cesare", "Albertelli"],
-  "Progetto Musei": ["Massimo", "Vittoria Colonna", "Pertini"],
+  "Biologia Animale": [
+    { nome: "Bottardi", contributo: "Presentazione orale" },
+    { nome: "Keynes", contributo: "Esperienza pratica" }
+    { nome: "Socrate", contributo: "Poster dal titolo" },
+  ],
+  "Botanica": [
+    { nome: "Levi Civita", contributo: "Presentazione orale" },
+    { nome: "Majorana", contributo: "Poster dal titolo" },
+    { nome: "Pertini Falcone", contributo: "Poster dal titolo" },
+    { nome: "Righi", contributo: "Poster dal titolo" },
+    { nome: "von Neumann", contributo: "Poster dal titolo" }
+  ],
+  "Chimica": [
+    { nome: "Cavour", contributo: "Poster dal titolo" },
+    { nome: "Garibaldi", contributo: "Poster dal titolo" },
+    { nome: "Mamiani", contributo: "Poster dal titolo" },
+    { nome: "Montessori", contributo: "Presentazione orale" }
+    { nome: "Torricelli", contributo: "Presentazione orale" },
+  ],
+  "Fisica": [
+    { nome: "Albertelli", contributo: "Presentazione orale" }
+    { nome: "Cornelio Tacito", contributo: "Esperienza pratica" },
+    { nome: "De Santis", contributo: "Esperienza pratica" },
+    { nome: "Francesco d'Assisi", contributo: "Esperienza pratica" },
+    { nome: "Giulio Cesare", contributo: "Presentazione orale" }
+    { nome: "Lorenzo Rocci", contributo: "Presentazione orale" },
+    { nome: "Lucrezio Caro", contributo: "Esperienza pratica" },
+    { nome: "Nomentano", contributo: "Presentazione orale" },
+    { nome: "Polo Liceale Alighieri", contributo: "Presentazione orale" },
+    { nome: "Righi", contributo: "Presentazione orale" }
+    { nome: "Sandro Pertini", contributo: "Esperienza pratica" },
+    { nome: "Vian", contributo: "Esperienza pratica" },
+    { nome: "Vittoria Colonna", contributo: "Presentazione orale" }
+    
+  ],
+  "Progetto Musei": [
+    { nome: "Massimo", contributo: "Poster dal titolo" },
+    { nome: "Pertini", contributo: "Presentazione orale" }
+    { nome: "Vittoria Colonna", contributo: "Presentazione orale" },
+  ],
   "Robotica": [],
-  "Scienze della Terra": ["Labriola", "Galileo Galilei", "Levi Ciita"]
+  "Scienze della Terra": [
+    { nome: "Galileo Galilei", contributo: "Poster dal titolo" },
+    { nome: "Labriola", contributo: "Poster dal titolo" },
+    { nome: "Levi Civita", contributo: "Esperienza pratica" }
+  ]
 };
 
 const percorsoClassi = {
@@ -219,12 +256,12 @@ const MAX_VOTES = 2;
 
 const voteContainer = document.getElementById("voteContainer");
 
-// ORDINE ALFABETICO
 const percorsiOrdinati = Object.keys(percorsi).sort();
 
 percorsiOrdinati.forEach(percorso => {
 
   const scuole = percorsi[percorso];
+
   const divPercorso = document.createElement("div");
   divPercorso.className = `percorso ${percorsoClassi[percorso]}`;
 
@@ -239,24 +276,31 @@ percorsiOrdinati.forEach(percorso => {
 
     const table = document.createElement("table");
 
-    scuole.forEach(scuola => {
+    scuole.forEach(item => {
+
       const tr = document.createElement("tr");
 
       const tdNome = document.createElement("td");
-      tdNome.innerText = scuola;
+      tdNome.innerText = item.nome;
+
+      const tdContributo = document.createElement("td");
+      tdContributo.innerText = item.contributo;
+      tdContributo.style.fontStyle = "italic";
 
       const tdCheck = document.createElement("td");
       const input = document.createElement("input");
       input.type = "checkbox";
       input.name = "choice";
-      input.value = `${percorso} - ${scuola}`;
+      input.value = `${percorso} - ${item.nome}`;
 
       tdCheck.appendChild(input);
 
       tr.appendChild(tdNome);
+      tr.appendChild(tdContributo);
       tr.appendChild(tdCheck);
 
       table.appendChild(tr);
+
     });
 
     tableDiv.appendChild(table);
@@ -271,7 +315,7 @@ percorsiOrdinati.forEach(percorso => {
   voteContainer.appendChild(divPercorso);
 });
 
-// FORM INVIO
+// FORM
 const form = document.createElement("form");
 form.id = "voteForm";
 
@@ -282,7 +326,7 @@ submit.innerText = "Invia voto";
 form.appendChild(submit);
 voteContainer.appendChild(form);
 
-// INVIO VOTO
+// INVIO
 form.addEventListener("submit", async function(e) {
 
   e.preventDefault();
@@ -299,11 +343,7 @@ form.addEventListener("submit", async function(e) {
     return;
   }
 
-  // controllo percorsi diversi
-  const percorsiSelezionati = Array.from(checked).map(c => {
-    return c.value.split(" - ")[0];
-  });
-
+  const percorsiSelezionati = Array.from(checked).map(c => c.value.split(" - ")[0]);
   const percorsiUnici = new Set(percorsiSelezionati);
 
   if (checked.length === 2 && percorsiUnici.size === 1) {
@@ -311,9 +351,7 @@ form.addEventListener("submit", async function(e) {
     return;
   }
 
-  // invio voti
   for (let scelta of checked) {
-
     const [percorso, scuola] = scelta.value.split(" - ");
 
     const res = await fetch("/vote", {
@@ -328,14 +366,10 @@ form.addEventListener("submit", async function(e) {
       alert(data.error);
       return;
     }
-
   }
 
   alert("Voto registrato. Grazie!");
-
-  });
-
-
+});
 </script>
 
 </body>
