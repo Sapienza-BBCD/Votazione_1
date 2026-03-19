@@ -208,6 +208,7 @@ app.get("/download-qrs", async (req, res) => {
 });
 
 // --- PDF QR ---
+
 app.get("/print-qrs", async (req,res)=>{
 
   const doc = new PDFDocument({margin:30});
@@ -308,6 +309,7 @@ app.get("/print-qrs", async (req,res)=>{
   });
 
 });
+
 
 // --- START SERVER ---
 app.listen(PORT, () => {
