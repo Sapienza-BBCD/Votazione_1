@@ -21,9 +21,9 @@ const MAX_VOTES = 2;
 // =========================
 // MIDDLEWARE
 // =========================
-app.use(express.static("public"));
-app.use(express.json());
 app.use(cors());
+app.use(express.json());
+app.use(express.static("public"));
 
 // =========================
 // DB
