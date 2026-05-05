@@ -2,12 +2,12 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Risultati in Diretta - LAB2GO</title>
+<title>LIVE - Risultati LAB2GO</title>
 
 <style>
 body {
   font-family: Arial;
-  background: #1E3A8A;
+  background: linear-gradient(#1E3A8A, #0f172a);
   color: white;
   margin: 0;
 }
@@ -15,18 +15,19 @@ body {
 h1 {
   text-align: center;
   padding: 20px;
+  font-size: 40px;
 }
 
 #totalVotes {
   text-align:center;
-  font-size:22px;
+  font-size:24px;
   margin-bottom:20px;
 }
 
 /* PERCORSO */
 .percorso {
   margin: 40px auto;
-  width: 80%;
+  width: 85%;
 }
 
 /* TITOLO */
@@ -40,43 +41,66 @@ h1 {
 .podio {
   display: flex;
   justify-content: space-around;
-  margin-top: 20px;
-  text-align: center;
+  margin-top: 30px;
 }
 
 .podio div {
   width: 30%;
-  padding: 10px;
-  border-radius: 10px;
-  transition: transform 0.3s;
+  padding: 15px;
+  border-radius: 12px;
+  text-align: center;
+  animation: slideUp 0.8s ease;
 }
 
-.podio div:hover {
-  transform: scale(1.05);
+@keyframes slideUp {
+  from { transform: translateY(100px); opacity:0; }
+  to { transform: translateY(0); opacity:1; }
 }
 
-.first { background: gold; color: black; }
+.first {
+  background: gold;
+  color: black;
+  transform: scale(1.1);
+  box-shadow: 0 0 20px gold;
+}
+
 .second { background: silver; color: black; }
 .third { background: #cd7f32; color: black; }
 
 /* TABELLA */
 table {
   width: 100%;
-  margin-top: 20px;
+  margin-top: 25px;
   border-collapse: collapse;
 }
 
 td {
   padding: 10px;
-  border-bottom: 1px solid white;
+  border-bottom: 1px solid #ffffff33;
 }
 
 /* BARRE */
 .bar {
-  background: #60A5FA;
-  height: 20px;
+  background: linear-gradient(90deg, #60A5FA, #3B82F6);
+  height: 22px;
   display: inline-block;
-  transition: width 0.5s;
+  border-radius: 6px;
+  transition: width 0.6s ease;
+}
+
+/* TITOLO PICCOLO */
+.titolo {
+  font-style: italic;
+  font-size: 13px;
+  display: block;
+  opacity: 0.8;
+}
+
+/* LEADER HIGHLIGHT */
+.leader {
+  font-weight: bold;
+  color: #FFD700;
+  font-size: 18px;
 }
 </style>
 
@@ -84,75 +108,39 @@ td {
 
 <body>
 
-<h1>Risultati in Diretta - LAB2GO</h1>
-<div id="totalVotes">Totale voti raccolti: 0</div>
+<h1>🏆 RISULTATI LIVE LAB2GO</h1>
+<div id="totalVotes">Totale voti: 0</div>
 
 <div id="resultsContainer"></div>
 
 <script>
 
-// 🔥 MAPPATURA CONTRIBUTI (percorso + scuola)
-const contributi = {
-  "Biologia Animale|Bottardi": "Orale",
-  "Biologia Animale|Keynes": "Esperienza",
-  "Biologia Animale|Socrate": "Poster",
-
-  "Botanica|Levi Civita": "Orale",  
-  "Botanica|Majorana": "Poster",
-  "Botanica|von Neumann": "Poster",
-  "Botanica|Pertini Falcone": "Poster",
-  "Botanica|Righi": "Poster",
-
-  "Chimica|Cavour": "Poster",
-  "Chimica|Garibaldi": "Poster",
-  "Chimica|Mamiani": "Poster",
-  "Chimica|Montessori": "Orale",
-  "Chimica|Torricelli": "Orale",
-
-  "Fisica|Albertelli": "Orale",    
-  "Fisica|Cornelio Tacito": "Esperienza",
-  "Fisica|De Santis": "Esperienza",
-  "Fisica|Francesco d'Assisi": "Esperienza",
-  "Fisica|Giulio Cesare": "Orale",    
-  "Fisica|Lorenzo Rocci": "Orale",
-  "Fisica|Lucrezio Caro": "Esperienza",
-  "Fisica|Sandro Pertini": "Esperienza",
-  "Fisica|Nomentano": "Orale",
-  "Fisica|Polo Liceale Alighieri": "Orale",
-  "Fisica|Righi": "Orale",
-  "Fisica|Vian": "Esperienza",
-  "Fisica|Vittoria Colonna": "Orale",
-
-  "Progetto Musei|Massimo": "Poster",
-  "Progetto Musei|Pertini": "Orale",
-  "Progetto Musei|Vittoria Colonna": "Orale",
-
-  "Scienze della Terra|Galileo Galilei": "Poster",
-  "Scienze della Terra|Labriola": "Poster",
-  "Scienze della Terra|Levi Civita": "Poster"  
+// 🔥 USA LA STESSA MAPPATURA TITOLI DI PRIMA
+const titoli = {
+  "Fisica - Esperimento|IIS Gaetano De Sanctis": "Sensori, Motori e Gravità",
+  "Fisica - Esperimento|G. Lombardo Radice": "Esperimenti vari",
+  "Chimica - Esperimento|Liceo Terenzio Mamiani": "Chimica e sostenibilità",
+  "Biologia Animale - Talk|Liceo Socrate Roma": "Ricostruzione 3D"
+  // 👉 puoi lasciare anche solo i principali
 };
 
-// funzione helper
-function getContributo(percorso, scuola) {
-  return contributi[`${percorso}|${scuola}`] || "";
+function getTitolo(percorso, scuola) {
+  return titoli[`${percorso}|${scuola}`] || "";
 }
 
-// FETCH DATI
 async function fetchResults() {
   const res = await fetch("/results-data");
   return await res.json();
 }
 
-// RENDER
 function renderResults(data) {
 
   const container = document.getElementById("resultsContainer");
   container.innerHTML = "";
 
   document.getElementById("totalVotes").innerText =
-    "Totale voti raccolti: " + data.totale;
+    "Totale voti: " + data.totale;
 
-  // Raggruppa per percorso
   const grouped = {};
 
   data.risultati.forEach(r => {
@@ -160,13 +148,12 @@ function renderResults(data) {
     grouped[r.percorso].push(r);
   });
 
-  // Per ogni percorso
   for (const percorso in grouped) {
 
     const elenco = grouped[percorso];
-
-    // ordina
     elenco.sort((a,b) => b.votes - a.votes);
+
+    const maxVotes = elenco[0]?.votes || 1;
 
     const div = document.createElement("div");
     div.className = "percorso";
@@ -175,49 +162,45 @@ function renderResults(data) {
     titolo.innerText = percorso;
     div.appendChild(titolo);
 
-    // PODIO
+    // 🏆 PODIO
     const podio = document.createElement("div");
     podio.className = "podio";
 
-    if (elenco[0]) {
-      podio.innerHTML += `
-        <div class="first">
-          🥇 ${elenco[0].scuola} - ${getContributo(percorso, elenco[0].scuola)}<br>
-          ${elenco[0].votes} voti
-        </div>`;
-    }
+    [0,1,2].forEach(i => {
+      if (elenco[i]) {
+        const classe = ["first","second","third"][i];
 
-    if (elenco[1]) {
-      podio.innerHTML += `
-        <div class="second">
-          🥈 ${elenco[1].scuola} - ${getContributo(percorso, elenco[1].scuola)}<br>
-          ${elenco[1].votes} voti
-        </div>`;
-    }
-
-    if (elenco[2]) {
-      podio.innerHTML += `
-        <div class="third">
-          🥉 ${elenco[2].scuola} - ${getContributo(percorso, elenco[2].scuola)}<br>
-          ${elenco[2].votes} voti
-        </div>`;
-    }
+        podio.innerHTML += `
+          <div class="${classe}">
+            ${["🥇","🥈","🥉"][i]} 
+            <div class="leader">${elenco[i].scuola}</div>
+            <span class="titolo">${getTitolo(percorso, elenco[i].scuola)}</span>
+            <br>${elenco[i].votes} voti
+          </div>
+        `;
+      }
+    });
 
     div.appendChild(podio);
 
-    // TABELLA
+    // 📊 TABELLA
     const table = document.createElement("table");
 
     elenco.forEach(r => {
 
+      const percent = (r.votes / maxVotes) * 100;
+
       const tr = document.createElement("tr");
 
       const td1 = document.createElement("td");
-      td1.innerText = `${r.scuola} - ${getContributo(r.percorso, r.scuola)}`;
+      td1.innerHTML = `
+        ${r.scuola}
+        <span class="titolo">${getTitolo(r.percorso, r.scuola)}</span>
+      `;
 
       const td2 = document.createElement("td");
       td2.innerHTML =
-        `<div class="bar" style="width:${r.votes * 30}px;"></div> ${r.votes} voti`;
+        `<div class="bar" style="width:${percent}%"></div> ${r.votes}`;
 
       tr.appendChild(td1);
       tr.appendChild(td2);
@@ -230,7 +213,7 @@ function renderResults(data) {
   }
 }
 
-// AGGIORNAMENTO LIVE
+// 🔁 AUTO REFRESH FLUIDO
 async function update(){
   const data = await fetchResults();
   renderResults(data);

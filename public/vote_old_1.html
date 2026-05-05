@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Vota il progetto preferito - LAB2GO</title>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #e6f0ff;
+  margin: 0;
+  text-align: center;
+}
+
+/* HEADER FISSO */
+header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: #ffffff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  z-index: 1000;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.logo {
+  height: 60px;
+}
+
+/* BARRA GRIGIA */
+.separator {
+  position: fixed;
+  top: 80px;
+  width: 100%;
+  height: 6px;
+  background: #e0e0e0;
+  z-index: 999;
+}
+
+/* CONTENUTO */
+.container {
+  max-width: 1000px;
+  margin: 140px auto 30px auto; /* spazio per header */
+  padding: 0 10px;
+}
+
+h1 {
+  font-size: 32px;
+  color: #822433;
+}
+
+h2 {
+  font-size: 24px;
+  margin-bottom: 15px;
+  color: #fff;
+}
+
+.info {
+  background: #ffffffcc;
+  padding: 15px;
+  margin: 20px auto;
+  border-radius: 10px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  color: #822433;
+}
+
+.percorso {
+  border-radius: 10px;
+  margin-bottom: 30px;
+  padding: 15px;
+  color: #fff;
+}
+
+.table-container {
+  background: #ffffffcc;
+  border-radius: 8px;
+  padding: 10px;
+  margin-top: 10px;
+  display: inline-block;
+  width: 100%;
+  overflow-x: auto;
+}
+
+.top-fixed {
+  position: fixed;
+  top: 120px; /* sotto header + barra */
+  width: 100%;
+  max-width: 1000px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #e6f0ff;
+  z-index: 900;
+  padding-bottom: 10px;
+}
+
+#scrollArea {
+  margin-top: 320px; /* spazio per header + titolo + info */
+  height: calc(100vh - 260px);
+  overflow-y: auto;
+}
+
+.blink {
+  animation: lampeggio 1.2s infinite;
+  font-weight: bold;
+}
+
+@keyframes lampeggio {
+  0%   { color: #800000; }   /* colore attuale (bordeaux) */
+  50%  { color: #003366; }   /* colore accattivante (blu) */
+  100% { color: #800000; }
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 250px;
+}
+
+td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+  color: #800000; /* BORDEAUX */
+  font-weight: bold;
+}
+
+button {
+  margin-top: 20px;
+  padding: 12px 30px;
+  font-size: 18px;
+  background: #007BFF;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #0056b3;
+}
+
+/* COLORI PERCORSI */
+.percorso-biologia { background: #2196F3; }
+.percorso-botanica { background: #4CAF50; }
+.percorso-chimica { background: #FF9800; }
+.percorso-fisica { background: #9C27B0; }
+.percorso-musei { background: #F44336; }
+.percorso-robotica { background: #795548; }
+.percorso-terra { background: #607D8B; }
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  header { flex-direction: column; }
+  h1 { font-size: 28px; }
+  h2 { font-size: 20px; }
+  .logo { height: 50px; }
+  button { width: 90%; font-size: 16px; }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <img src="logo1.png" class="logo">
+  <img src="logo2.png" class="logo">
+</header>
+
+<div class="separator"></div>
+
+<div class="container">
+
+<div class="top-fixed">
+  <h1>Vota il progetto preferito - LAB2GO</h1>
+
+  <div class="info">
+    Il QR code è monouso.<br>
+    Una volta inviato il voto <b>non sarà possibile modificarlo</b>.<br>
+    Puoi votare <b class="blink">massimo 2 progetti da scegliere fra due percorsi diversi</b>.
+  </div>
+</div>
+
+<div id="scrollArea">
+  <div id="voteContainer"></div>
+</div>
+
+</div>
+
+<script>
+const percorsi = {
+  "Biologia Animale": [
+    { nome: "Bottardi", contributo: "Presentazione orale" },
+    { nome: "Keynes", contributo: "Esperienza pratica" },
+    { nome: "Socrate", contributo: "Poster dal titolo" }
+  ],
+  "Botanica": [
+    { nome: "Levi Civita", contributo: "Presentazione orale" },
+    { nome: "Majorana", contributo: "Poster dal titolo" },
+    { nome: "Pertini Falcone", contributo: "Poster dal titolo" },
+    { nome: "Righi", contributo: "Poster dal titolo" },
+    { nome: "von Neumann", contributo: "Poster dal titolo" }
+  ],
+  "Chimica": [
+    { nome: "Cavour", contributo: "Poster dal titolo" },
+    { nome: "Garibaldi", contributo: "Poster dal titolo" },
+    { nome: "Mamiani", contributo: "Poster dal titolo" },
+    { nome: "Montessori", contributo: "Presentazione orale" },
+    { nome: "Torricelli", contributo: "Presentazione orale" }
+  ],
+  "Fisica": [
+    { nome: "Albertelli", contributo: "Presentazione orale" },
+    { nome: "Cornelio Tacito", contributo: "Esperienza pratica" },
+    { nome: "De Santis", contributo: "Esperienza pratica" },
+    { nome: "Francesco d'Assisi", contributo: "Esperienza pratica" },
+    { nome: "Giulio Cesare", contributo: "Presentazione orale" },
+    { nome: "Lorenzo Rocci", contributo: "Presentazione orale" },
+    { nome: "Lucrezio Caro", contributo: "Esperienza pratica" },
+    { nome: "Nomentano", contributo: "Presentazione orale" },
+    { nome: "Polo Liceale Alighieri", contributo: "Presentazione orale" },
+    { nome: "Righi", contributo: "Presentazione orale" },
+    { nome: "Sandro Pertini", contributo: "Esperienza pratica" },
+    { nome: "Vian", contributo: "Esperienza pratica" },
+    { nome: "Vittoria Colonna", contributo: "Presentazione orale" }
+    
+  ],
+  "Progetto Musei": [
+    { nome: "Massimo", contributo: "Poster dal titolo" },
+    { nome: "Pertini", contributo: "Presentazione orale" },
+    { nome: "Vittoria Colonna", contributo: "Presentazione orale" }
+  ],
+  "Robotica": [],
+  "Scienze della Terra": [
+    { nome: "Galileo Galilei", contributo: "Poster dal titolo" },
+    { nome: "Labriola", contributo: "Poster dal titolo" },
+    { nome: "Levi Civita", contributo: "Esperienza pratica" }
+  ]
+};
+
+const percorsoClassi = {
+  "Biologia Animale": "percorso-biologia",
+  "Botanica": "percorso-botanica",
+  "Chimica": "percorso-chimica",
+  "Fisica": "percorso-fisica",
+  "Progetto Musei": "percorso-musei",
+  "Robotica": "percorso-robotica",
+  "Scienze della Terra": "percorso-terra"
+};
+
+const urlParams = new URLSearchParams(window.location.search);
+const token = urlParams.get("token");
+const MAX_VOTES = 2;
+
+const voteContainer = document.getElementById("voteContainer");
+
+const percorsiOrdinati = Object.keys(percorsi).sort();
+
+percorsiOrdinati.forEach(percorso => {
+
+  const scuole = percorsi[percorso];
+
+  const divPercorso = document.createElement("div");
+  divPercorso.className = `percorso ${percorsoClassi[percorso]}`;
+
+  const h2 = document.createElement("h2");
+  h2.innerText = percorso;
+  divPercorso.appendChild(h2);
+
+  if (scuole.length > 0) {
+
+    const tableDiv = document.createElement("div");
+    tableDiv.className = "table-container";
+
+    const table = document.createElement("table");
+
+    scuole.forEach(item => {
+
+      const tr = document.createElement("tr");
+
+      const tdNome = document.createElement("td");
+      tdNome.innerText = item.nome;
+
+      const tdContributo = document.createElement("td");
+      tdContributo.innerText = item.contributo;
+      tdContributo.style.fontStyle = "italic";
+
+      const tdCheck = document.createElement("td");
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.name = "choice";
+      input.value = `${percorso} - ${item.nome}`;
+
+      tdCheck.appendChild(input);
+
+      tr.appendChild(tdNome);
+      tr.appendChild(tdContributo);
+      tr.appendChild(tdCheck);
+
+      table.appendChild(tr);
+
+    });
+
+    tableDiv.appendChild(table);
+    divPercorso.appendChild(tableDiv);
+
+  } else {
+    const p = document.createElement("p");
+    p.innerText = "Nessuna scuola iscritta";
+    divPercorso.appendChild(p);
+  }
+
+  voteContainer.appendChild(divPercorso);
+});
+
+// FORM
+const form = document.createElement("form");
+form.id = "voteForm";
+
+const submit = document.createElement("button");
+submit.type = "submit";
+submit.innerText = "Invia voto";
+
+form.appendChild(submit);
+voteContainer.appendChild(form);
+
+// INVIO
+form.addEventListener("submit", async function(e) {
+
+  e.preventDefault();
+
+  const checked = document.querySelectorAll("input[name='choice']:checked");
+
+  if (checked.length === 0) {
+    alert("Seleziona almeno un progetto");
+    return;
+  }
+
+  if (checked.length > MAX_VOTES) {
+    alert(`Puoi votare massimo ${MAX_VOTES} progetti`);
+    return;
+  }
+
+  const percorsiSelezionati = Array.from(checked).map(c => c.value.split(" - ")[0]);
+  const percorsiUnici = new Set(percorsiSelezionati);
+
+  if (checked.length === 2 && percorsiUnici.size === 1) {
+    alert("Puoi votare massimo un progetto per ciascun percorso!");
+    return;
+  }
+
+  for (let scelta of checked) {
+    const [percorso, scuola] = scelta.value.split(" - ");
+
+    const res = await fetch("/vote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, percorso, scuola })
+    });
+
+    const data = await res.json();
+
+    if (!data.success) {
+      alert(data.error);
+      return;
+    }
+  }
+
+  alert("Voto registrato. Grazie!");
+});
+</script>
+
+</body>
+</html>
