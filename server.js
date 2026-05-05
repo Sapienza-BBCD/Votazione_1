@@ -7,8 +7,18 @@ const QRCode = require("qrcode");
 const PDFDocument = require("pdfkit");
 const archiver = require("archiver");
 
-const PORT = process.env.PORT || 3000;
 const app = express();
+const PORT = process.env.PORT || 3000;
+
+// =========================
+// CONFIG
+// =========================
+const BASE_URL =
+  process.env.BASE_URL || "https://votazione-1.onrender.com";
+
+const PARTICIPANTI = 300;
+const MAX_VOTES = 2;
+const ADMIN_PASSWORD = "lab2go";
 
 // =========================
 // MIDDLEWARE
@@ -21,12 +31,6 @@ app.use(express.static("public"));
 // DB
 // =========================
 const db = new sqlite3.Database("votes.db");
-
-const PARTICIPANTI = 300;
-const MAX_VOTES = 2;
-const ADMIN_PASSWORD = "lab2go";
-
-let statoVotazione = "pre";
 
 // =========================
 // INIT DB
@@ -49,8 +53,23 @@ db.serialize(() => {
     )
   `);
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS settings(
+      key TEXT PRIMARY KEY,
+      value TEXT
+    )
+  `);
+
+  // stato iniziale persistente
+  db.get("SELECT value FROM settings WHERE key='stato'", (err, row) => {
+    if (!row) {
+      db.run("INSERT INTO settings(key,value) VALUES('stato','pre')");
+    }
+  });
+
+  // genera token solo una volta
   db.get("SELECT COUNT(*) AS count FROM tokens", (err, row) => {
-    if (!err && row && row.count === 0) {
+    if (row && row.count === 0) {
       const stmt = db.prepare("INSERT INTO tokens(token) VALUES(?)");
       for (let i = 0; i < PARTICIPANTI; i++) {
         stmt.run(uuidv4());
@@ -63,6 +82,23 @@ db.serialize(() => {
 });
 
 // =========================
+// HELPERS STATO
+// =========================
+function getStato(cb) {
+  db.get("SELECT value FROM settings WHERE key='stato'", (err, row) => {
+    cb(row ? row.value : "pre");
+  });
+}
+
+function setStato(val, cb) {
+  db.run(
+    "UPDATE settings SET value=? WHERE key='stato'",
+    [val],
+    cb
+  );
+}
+
+// =========================
 // PAGES
 // =========================
 app.get("/", (req, res) => {
@@ -73,14 +109,20 @@ app.get("/admin", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin-login.html"));
 });
 
+app.get("/results-view", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "results-view.html"));
+});
+
 // =========================
-// LOGIN ADMIN
+// ADMIN LOGIN
 // =========================
 app.post("/admin-login", (req, res) => {
   const { password } = req.body;
+
   if (password !== ADMIN_PASSWORD) {
     return res.json({ error: "Password errata" });
   }
+
   res.json({ success: true });
 });
 
@@ -88,26 +130,22 @@ app.post("/admin-login", (req, res) => {
 // STATO VOTAZIONE
 // =========================
 app.get("/open-vote", (req, res) => {
-  statoVotazione = "open";
-  res.json({ ok: true, stato: statoVotazione });
+  setStato("open", () => res.json({ ok: true, stato: "open" }));
 });
 
 app.get("/close-vote", (req, res) => {
-  statoVotazione = "closed";
-  res.json({ ok: true, stato: statoVotazione });
+  setStato("closed", () => res.json({ ok: true, stato: "closed" }));
 });
 
 app.get("/reset-vote", (req, res) => {
-  statoVotazione = "pre";
-  res.json({ ok: true, stato: statoVotazione });
+  setStato("pre", () => res.json({ ok: true, stato: "pre" }));
 });
 
 // =========================
 // RESET VOTI
 // =========================
 app.get("/reset-votes", (req, res) => {
-  db.run("DELETE FROM votes", (err) => {
-    if (err) return res.json({ error: "Errore reset voti" });
+  db.run("DELETE FROM votes", () => {
     res.json({ ok: true });
   });
 });
@@ -119,32 +157,37 @@ app.post("/vote", (req, res) => {
 
   const { token, percorso, scuola } = req.body;
 
-  if (statoVotazione === "pre")
-    return res.json({ error: "Votazione non aperta" });
+  getStato((stato) => {
 
-  if (statoVotazione === "closed")
-    return res.json({ error: "Votazione chiusa" });
+    if (stato === "pre")
+      return res.json({ error: "Votazione non aperta" });
 
-  db.get("SELECT * FROM tokens WHERE token=?", [token], (err, row) => {
-
-    if (err || !row)
-      return res.json({ error: "Token non valido" });
+    if (stato === "closed")
+      return res.json({ error: "Votazione chiusa" });
 
     db.get(
-      "SELECT COUNT(*) as count FROM votes WHERE token=?",
+      "SELECT * FROM tokens WHERE token=?",
       [token],
-      (err, result) => {
+      (err, row) => {
 
-        if (result && result.count >= MAX_VOTES) {
-          return res.json({ error: "Limite voti raggiunto" });
-        }
+        if (!row)
+          return res.json({ error: "Token non valido" });
 
-        db.run(
-          "INSERT INTO votes(token,percorso,scuola) VALUES(?,?,?)",
-          [token, percorso, scuola],
-          (err) => {
-            if (err) return res.json({ error: "Errore server voto" });
-            res.json({ success: true });
+        db.get(
+          "SELECT COUNT(*) as count FROM votes WHERE token=?",
+          [token],
+          (err, result) => {
+
+            if (result.count >= MAX_VOTES) {
+              return res.json({ error: "Limite voti raggiunto" });
+            }
+
+            db.run(
+              "INSERT INTO votes(token,percorso,scuola) VALUES(?,?,?)",
+              [token, percorso, scuola],
+              () => res.json({ success: true })
+            );
+
           }
         );
 
@@ -167,10 +210,6 @@ app.get("/results-data", (req, res) => {
     ORDER BY percorso, votes DESC
   `, (err, rows) => {
 
-    if (err) {
-      return res.json({ totale: 0, risultati: [] });
-    }
-
     db.get("SELECT COUNT(*) as totale FROM votes", (err2, tot) => {
 
       res.json({
@@ -189,13 +228,12 @@ app.get("/results-data", (req, res) => {
 // =========================
 app.get("/tokens", (req, res) => {
   db.all("SELECT token FROM tokens", (err, rows) => {
-    if (err) return res.json([]);
-    res.json(rows);
+    res.json(rows || []);
   });
 });
 
 // =========================
-// DOWNLOAD QR
+// DOWNLOAD QR ZIP
 // =========================
 app.get("/download-qrs", async (req, res) => {
 
@@ -206,12 +244,10 @@ app.get("/download-qrs", async (req, res) => {
 
   db.all("SELECT token FROM tokens", async (err, rows) => {
 
-    if (err || !rows) {
-      return archive.finalize();
-    }
+    if (!rows) return archive.finalize();
 
     for (let i = 0; i < rows.length; i++) {
-      const url = `${req.protocol}://${req.get("host")}/?token=${rows[i].token}`;
+      const url = `${BASE_URL}/?token=${rows[i].token}`;
       const qr = await QRCode.toBuffer(url);
       archive.append(qr, { name: `qr-${i + 1}.png` });
     }
@@ -235,7 +271,7 @@ app.get("/print-qrs", async (req, res) => {
 
   db.all("SELECT token FROM tokens", async (err, rows) => {
 
-    if (err || !rows) {
+    if (!rows) {
       doc.end();
       return;
     }
@@ -249,7 +285,7 @@ app.get("/print-qrs", async (req, res) => {
 
     for (let i = 0; i < rows.length; i++) {
 
-      const url = `${req.protocol}://${req.get("host")}/?token=${rows[i].token}`;
+      const url = `${BASE_URL}/?token=${rows[i].token}`;
       const qr = await QRCode.toDataURL(url);
       const img = Buffer.from(qr.split(",")[1], "base64");
 
