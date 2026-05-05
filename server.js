@@ -145,8 +145,16 @@ app.get("/reset-vote", (req, res) => {
 // RESET VOTI
 // =========================
 app.get("/reset-votes", (req, res) => {
-  db.run("DELETE FROM votes", () => {
-    res.json({ ok: true });
+  db.run("DELETE FROM votes", function (err) {
+
+    if (err) {
+      console.error(err);
+      return res.json({ error: "Errore reset voti" });
+    }
+
+    console.log("Voti cancellati:", this.changes);
+
+    res.json({ ok: true, deleted: this.changes });
   });
 });
 
