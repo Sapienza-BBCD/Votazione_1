@@ -7,16 +7,17 @@ const QRCode = require("qrcode");
 const PDFDocument = require("pdfkit");
 const archiver = require("archiver");
 
-const PORT = process.env.PORT || 3000;
 const app = express();
+const PORT = process.env.PORT || 3000;
 
 // =========================
-// CONFIG SICUREZZA
+// CONFIG
 // =========================
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "lab2go";
-const ADMIN_KEY = process.env.ADMIN_KEY || "change-me-very-secret";
-
 const BASE_URL = process.env.BASE_URL || "https://votazione-1.onrender.com";
+
+const PARTICIPANTI = 300;
+const MAX_VOTES = 2;
 
 // =========================
 // MIDDLEWARE
@@ -29,9 +30,6 @@ app.use(cors());
 // DB
 // =========================
 const db = new sqlite3.Database("votes.db");
-
-const PARTICIPANTI = 300;
-const MAX_VOTES = 2;
 
 // =========================
 // INIT DB
@@ -54,7 +52,6 @@ db.serialize(() => {
     )
   `);
 
-  // stato persistente
   db.run(`
     CREATE TABLE IF NOT EXISTS settings(
       key TEXT PRIMARY KEY,
@@ -62,62 +59,43 @@ db.serialize(() => {
     )
   `);
 
-  db.get("SELECT COUNT(*) AS count FROM tokens", (err, row) => {
-    if (!row || row.count === 0) {
-      for (let i = 0; i < PARTICIPANTI; i++) {
-        db.run("INSERT INTO tokens(token) VALUES(?)", [uuidv4()]);
-      }
-      console.log("Token generati:", PARTICIPANTI);
-    }
-  });
-
+  // stato default
   db.get("SELECT value FROM settings WHERE key='stato'", (err, row) => {
     if (!row) {
       db.run("INSERT INTO settings(key,value) VALUES('stato','pre')");
     }
   });
 
+  // genera token SOLO se non esistono
+  db.get("SELECT COUNT(*) AS count FROM tokens", (err, row) => {
+    if (row && row.count === 0) {
+      const stmt = db.prepare("INSERT INTO tokens(token) VALUES(?)");
+      for (let i = 0; i < PARTICIPANTI; i++) {
+        stmt.run(uuidv4());
+      }
+      stmt.finalize();
+      console.log("Token generati:", PARTICIPANTI);
+    }
+  });
+
 });
 
 // =========================
-// HELPER STATO
+// HELPERS STATO
 // =========================
-function getStato(callback) {
+function getStato(cb) {
   db.get("SELECT value FROM settings WHERE key='stato'", (err, row) => {
-    callback(row ? row.value : "pre");
+    cb(row ? row.value : "pre");
   });
 }
 
-function setStato(stato, cb) {
-  db.run(
-    "UPDATE settings SET value=? WHERE key='stato'",
-    [stato],
-    cb
-  );
+function setStato(val, cb) {
+  db.run("UPDATE settings SET value=? WHERE key='stato'", [val], cb);
 }
 
 // =========================
-// MIDDLEWARE ADMIN SECURITY
-// =========================
-function checkAdmin(req, res, next) {
-  const key = req.headers["x-admin-key"];
-  if (key !== ADMIN_KEY) {
-    return res.status(403).json({ error: "Forbidden" });
-  }
-  next();
-}
-
-// =========================
-// ROUTES
-// =========================
-
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "vote.html"));
-});
-
-// -------------------------
 // VOTO
-// -------------------------
+// =========================
 app.post("/vote", (req, res) => {
 
   const { token, percorso, scuola } = req.body;
@@ -146,7 +124,7 @@ app.post("/vote", (req, res) => {
           }
 
           db.run(
-            "INSERT INTO votes(token, percorso, scuola) VALUES(?,?,?)",
+            "INSERT INTO votes(token,percorso,scuola) VALUES(?,?,?)",
             [token, percorso, scuola],
             () => res.json({ success: true })
           );
@@ -160,14 +138,13 @@ app.post("/vote", (req, res) => {
 
 });
 
-// -------------------------
-// ADMIN PAGE
-// -------------------------
+// =========================
+// ADMIN PAGES
+// =========================
 app.get("/admin", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin-login.html"));
 });
 
-// LOGIN ADMIN
 app.post("/admin-login", (req, res) => {
   const { password } = req.body;
 
@@ -178,37 +155,65 @@ app.post("/admin-login", (req, res) => {
   res.json({ success: true });
 });
 
-// -------------------------
-// STATO VOTAZIONE (ROBUSTO)
-// -------------------------
-app.get("/admin/open", checkAdmin, (req, res) => {
-  setStato("open", () => res.json({ ok: true, stato: "open" }));
+// =========================
+// STATO VOTAZIONE
+// =========================
+app.get("/admin/open", (req, res) => {
+  if (req.query.password !== ADMIN_PASSWORD) return res.json({ error: "No" });
+  setStato("open", () => res.json({ ok: true }));
 });
 
-app.get("/admin/close", checkAdmin, (req, res) => {
-  setStato("closed", () => res.json({ ok: true, stato: "closed" }));
+app.get("/admin/close", (req, res) => {
+  if (req.query.password !== ADMIN_PASSWORD) return res.json({ error: "No" });
+  setStato("closed", () => res.json({ ok: true }));
 });
 
-app.get("/admin/reset", checkAdmin, (req, res) => {
-  setStato("pre", () => res.json({ ok: true, stato: "pre" }));
+app.get("/admin/reset", (req, res) => {
+  if (req.query.password !== ADMIN_PASSWORD) return res.json({ error: "No" });
+  setStato("pre", () => res.json({ ok: true }));
 });
 
+// =========================
+// RESET VOTI
+// =========================
+app.get("/admin/reset-votes", (req, res) => {
+  if (req.query.password !== ADMIN_PASSWORD) return res.json({ error: "No" });
+  db.run("DELETE FROM votes", () => res.json({ ok: true }));
+});
+
+// =========================
+// RIGENERA TOKEN (NUOVA SESSIONE QR)
+// =========================
+app.get("/admin/regenerate-tokens", (req, res) => {
+
+  if (req.query.password !== ADMIN_PASSWORD) return res.json({ error: "No" });
+
+  db.run("DELETE FROM tokens", () => {
+
+    const stmt = db.prepare("INSERT INTO tokens(token) VALUES(?)");
+
+    for (let i = 0; i < PARTICIPANTI; i++) {
+      stmt.run(uuidv4());
+    }
+
+    stmt.finalize(() => {
+      res.json({ ok: true, message: "Token rigenerati" });
+    });
+
+  });
+
+});
+
+// =========================
+// STATO PUBBLICO
+// =========================
 app.get("/state", (req, res) => {
   getStato((stato) => res.json({ stato }));
 });
 
-// -------------------------
-// RESET VOTI
-// -------------------------
-app.get("/admin/reset-votes", checkAdmin, (req, res) => {
-  db.run("DELETE FROM votes", () => {
-    res.json({ ok: true });
-  });
-});
-
-// -------------------------
+// =========================
 // RISULTATI
-// -------------------------
+// =========================
 app.get("/results-data", (req, res) => {
 
   db.all(`
@@ -231,19 +236,19 @@ app.get("/results-data", (req, res) => {
 
 });
 
-// -------------------------
-// TOKEN
-// -------------------------
-app.get("/tokens", checkAdmin, (req, res) => {
+// =========================
+// TOKENS
+// =========================
+app.get("/tokens", (req, res) => {
   db.all("SELECT token FROM tokens", (err, rows) => {
     res.json(rows);
   });
 });
 
-// -------------------------
+// =========================
 // QR ZIP
-// -------------------------
-app.get("/download-qrs", checkAdmin, (req, res) => {
+// =========================
+app.get("/download-qrs", async (req, res) => {
 
   res.attachment("qrcodes.zip");
   const archive = archiver("zip");
@@ -252,10 +257,8 @@ app.get("/download-qrs", checkAdmin, (req, res) => {
   db.all("SELECT token FROM tokens", async (err, rows) => {
 
     for (let i = 0; i < rows.length; i++) {
-
       const url = `${BASE_URL}/?token=${rows[i].token}`;
       const qr = await QRCode.toBuffer(url);
-
       archive.append(qr, { name: `qr-${i + 1}.png` });
     }
 
@@ -264,10 +267,10 @@ app.get("/download-qrs", checkAdmin, (req, res) => {
 
 });
 
-// -------------------------
+// =========================
 // PDF QR
-// -------------------------
-app.get("/print-qrs", checkAdmin, (req, res) => {
+// =========================
+app.get("/print-qrs", async (req, res) => {
 
   const doc = new PDFDocument({ margin: 30 });
   res.setHeader("Content-Type", "application/pdf");
