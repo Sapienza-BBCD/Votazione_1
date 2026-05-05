@@ -117,13 +117,8 @@ button {
 
     <br>
 
-    <button onclick="sendVotes()" style="background:green;">
-      Conferma
-    </button>
-
-    <button onclick="closeConfirm()" style="background:red;">
-      Annulla
-    </button>
+    <button onclick="sendVotes()" style="background:green;">Conferma</button>
+    <button onclick="closeConfirm()" style="background:red;">Annulla</button>
   </div>
 </div>
 
@@ -217,25 +212,26 @@ const percorsi = {
 const token = new URLSearchParams(window.location.search).get("token");
 
 if (!token) {
-  document.body.innerHTML = "<h2 style='color:red'>Token mancante</h2>";
-  return;
+  document.body.innerHTML = "<h2>Token mancante</h2>";
+  throw new Error("Token mancante");
 }
 
 const MAX_VOTES = 2;
 let votiSelezionati = [];
+let isSubmitting = false;
 
+// =========================
+// UI
+// =========================
 const container = document.getElementById("voteContainer");
 
-// COSTRUZIONE UI
 Object.keys(percorsi).forEach(percorso => {
 
   const div = document.createElement("div");
   div.className = "percorso";
   div.style.background = "#3b82f6";
 
-  const h2 = document.createElement("h2");
-  h2.innerText = percorso;
-  div.appendChild(h2);
+  div.innerHTML = `<h2>${percorso}</h2>`;
 
   const table = document.createElement("table");
 
@@ -243,24 +239,11 @@ Object.keys(percorsi).forEach(percorso => {
 
     const tr = document.createElement("tr");
 
-    const td1 = document.createElement("td");
-    td1.innerText = item.nome;
-
-    const td2 = document.createElement("td");
-    td2.innerText = item.titolo;
-
-    const td3 = document.createElement("td");
-
-    const input = document.createElement("input");
-    input.type = "checkbox";
-    input.name = "choice";
-    input.value = `${percorso}|${item.nome}`;
-
-    td3.appendChild(input);
-
-    tr.appendChild(td1);
-    tr.appendChild(td2);
-    tr.appendChild(td3);
+    tr.innerHTML = `
+      <td>${item.nome}</td>
+      <td>${item.titolo}</td>
+      <td><input type="checkbox" name="choice" value="${percorso}|${item.nome}"></td>
+    `;
 
     table.appendChild(tr);
   });
@@ -271,45 +254,56 @@ Object.keys(percorsi).forEach(percorso => {
 
 // FORM
 const form = document.createElement("form");
-const btn = document.createElement("button");
-btn.innerText = "Invia voto";
-
-form.appendChild(btn);
+form.innerHTML = `<button type="submit">Invia voto</button>`;
 container.appendChild(form);
 
-// SUBMIT
+// =========================
+// PRE-CHECK
+// =========================
 form.addEventListener("submit", (e) => {
   e.preventDefault();
 
   const checked = document.querySelectorAll("input[name='choice']:checked");
 
-  if (checked.length === 0) return alert("Seleziona almeno un progetto");
-  if (checked.length > MAX_VOTES) return alert("Massimo 2 voti");
+  if (checked.length === 0) {
+    alert("Seleziona almeno un progetto");
+    return;
+  }
+
+  if (checked.length > MAX_VOTES) {
+    alert("Massimo 2 voti");
+    return;
+  }
 
   votiSelezionati = Array.from(checked).map(c => c.value);
 
-  let text = "";
-
-  votiSelezionati.forEach(v => {
+  let text = votiSelezionati.map(v => {
     const [p, s] = v.split("|");
-    text += `✔ ${p} - ${s}<br><br>`;
-  });
+    return `✔ ${p} - ${s}`;
+  }).join("<br><br>");
 
   text += votiSelezionati.length === 1
-    ? "Hai ancora un voto disponibile."
-    : "Sei sicuro di confermare?";
+    ? "<br><br>Hai ancora un voto disponibile."
+    : "<br><br>Sei sicuro di voler confermare 2 voti?";
 
   document.getElementById("confirmText").innerHTML = text;
   document.getElementById("confirmBox").style.display = "flex";
 });
 
-// MODALE
-window.closeConfirm = () => {
+// =========================
+// CHIUDI MODALE
+// =========================
+function closeConfirm() {
   document.getElementById("confirmBox").style.display = "none";
-};
+}
 
+// =========================
 // INVIO
-window.sendVotes = async () => {
+// =========================
+async function sendVotes() {
+
+  if (isSubmitting) return;
+  isSubmitting = true;
 
   for (let v of votiSelezionati) {
 
@@ -323,15 +317,24 @@ window.sendVotes = async () => {
 
     const data = await res.json();
 
-    if (!data.success) return alert(data.error);
+    if (!data.success) {
+      alert(data.error);
+      isSubmitting = false;
+      return;
+    }
   }
 
   alert("Voto registrato!");
+
+  // reset UI
+  document.querySelectorAll("input[name='choice']")
+    .forEach(c => c.checked = false);
+
   votiSelezionati = [];
   closeConfirm();
-};
 
-});
+  isSubmitting = false;
+}
 
 </script>
 
