@@ -72,7 +72,7 @@ button {
   cursor: pointer;
 }
 
-/* 🔥 MODALE CONFERMA */
+/* MODALE */
 #confirmBox {
   display:none;
   position:fixed;
@@ -109,7 +109,7 @@ button {
 <div id="voteContainer"></div>
 </div>
 
-<!-- 🔥 MODALE CONFERMA -->
+<!-- MODALE -->
 <div id="confirmBox">
   <div id="confirmInner">
     <h2>Conferma voto</h2>
@@ -133,22 +133,26 @@ button {
 // DATI
 // =========================
 const percorsi = {
+
 "Fisica - Esperimento": [
   { nome: "Gaetano De Sanctis", titolo: "Sensori, Motori e Gravità" },
   { nome: "G. Lombardo Radice", titolo: "Ipnosi dei pendoli magici" },
-  { nome: "G. Lombardo Radice", titolo: "Tubo di Quincke" },
-  { nome: "G. Lombardo Radice", titolo: "Polarizzazione della luce" },
-  { nome: "Augusto Righi Roma", titolo: "Sensore ultrasuoni HC SR04" },
-  { nome: "Vittoria Colonna", titolo: "Il pendolo nella storia" },
-  { nome: "Pilo Albertelli Roma", titolo: "Il coherer e onde elettromagnetiche" },
-  { nome: "Flacco Potenza", titolo: "Diffrazione ottica" }
+  { nome: "G. Lombardo Radice", titolo: "Tubo di Quincke" }
 ],
 
 "Chimica - Esperimento": [
   { nome: "Terenzio Mamiani", titolo: "Chimica e sostenibilità" },
-  { nome: "Cavour", titolo: "Pigmenti, gas ed elettrochimica" },
-  { nome: "Pertini Falcone", titolo: "Percorsi di chimica sperimentale" }
+  { nome: "Cavour", titolo: "Pigmenti, gas ed elettrochimica" }
+],
+
+"Fisica - Poster": [
+  { nome: "Vian Bracciano", titolo: "Legge di Lambert-Beer" }
+],
+
+"Chimica - Poster": [
+  { nome: "Cavour", titolo: "Pigmenti e acidità" }
 ]
+
 };
 
 // =========================
@@ -156,9 +160,10 @@ const token = new URLSearchParams(window.location.search).get("token");
 const MAX_VOTES = 2;
 
 let votiSelezionati = [];
+let isSubmitting = false;
 
 // =========================
-// UI CREATION
+// UI
 // =========================
 const voteContainer = document.getElementById("voteContainer");
 
@@ -220,11 +225,16 @@ form.appendChild(submit);
 voteContainer.appendChild(form);
 
 // =========================
-// SUBMIT → SOLO CONFERMA
+// SUBMIT
 // =========================
 form.addEventListener("submit", (e) => {
 
   e.preventDefault();
+
+  if (!token) {
+    alert("Token mancante. Ricarica dal QR.");
+    return;
+  }
 
   const checked = document.querySelectorAll("input[name='choice']:checked");
 
@@ -238,27 +248,33 @@ form.addEventListener("submit", (e) => {
     return;
   }
 
-  votiSelezionati = Array.from(checked).map(c => c.value);
+  const values = Array.from(checked).map(c => c.value);
+
+  const percorsiSel = values.map(v => v.split("|")[0]);
+  const unique = new Set(values);
+
+  if (unique.size !== values.length) {
+    alert("Non puoi selezionare lo stesso progetto due volte");
+    return;
+  }
+
+  votiSelezionati = values;
 
   let text = "";
 
-  votiSelezionati.forEach(v => {
-    const [percorso, scuola] = v.split("|");
-    text += `✔ ${percorso} - ${scuola}<br><br>`;
+  values.forEach(v => {
+    const [p, s] = v.split("|");
+    text += `✔ ${p} - ${s}<br><br>`;
   });
 
-  if (votiSelezionati.length === 1) {
-    text += "Hai ancora un voto disponibile.";
-  } else {
-    text += "Hai selezionato 2 progetti. Sei sicuro?";
-  }
+  text += (values.length === 1)
+    ? "Hai ancora un voto disponibile."
+    : "Hai selezionato 2 progetti. Sei sicuro?";
 
   document.getElementById("confirmText").innerHTML = text;
   document.getElementById("confirmBox").style.display = "flex";
 });
 
-// =========================
-// CHIUDI MODALE
 // =========================
 function closeConfirm() {
   document.getElementById("confirmBox").style.display = "none";
@@ -266,9 +282,10 @@ function closeConfirm() {
 }
 
 // =========================
-// INVIO VERO VOTO
-// =========================
 async function sendVotes() {
+
+  if (isSubmitting) return;
+  isSubmitting = true;
 
   for (let scelta of votiSelezionati) {
 
@@ -284,12 +301,20 @@ async function sendVotes() {
 
     if (!data.success) {
       alert(data.error);
+      isSubmitting = false;
       return;
     }
   }
 
   alert("Voto registrato!");
+
+  // reset UI
+  document.querySelectorAll("input[name='choice']").forEach(c => c.checked = false);
+
+  votiSelezionati = [];
   closeConfirm();
+
+  isSubmitting = false;
 }
 
 </script>
