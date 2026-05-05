@@ -1,6 +1,135 @@
-<!-- SOLO PARTE JS MODIFICATA, RESTO IDENTICO -->
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Vota il progetto preferito - LAB2GO</title>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #e6f0ff;
+  margin: 0;
+  text-align: center;
+}
+
+header {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  background: #fff;
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 20px;
+  z-index: 1000;
+}
+
+.logo { height: 60px; }
+
+.separator {
+  position: fixed;
+  top: 80px;
+  width: 100%;
+  height: 6px;
+  background: #e0e0e0;
+}
+
+.container {
+  max-width: 1000px;
+  margin: 140px auto 30px;
+}
+
+h1 { color: #822433; }
+
+.percorso {
+  border-radius: 10px;
+  margin-bottom: 30px;
+  padding: 15px;
+  color: #fff;
+}
+
+.table-container {
+  background: #ffffffcc;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+table { width: 100%; }
+
+td {
+  padding: 8px;
+  border-bottom: 1px solid #ddd;
+  color: #800000;
+  font-weight: bold;
+}
+
+button {
+  margin-top: 20px;
+  padding: 12px 30px;
+  font-size: 18px;
+  background: #007BFF;
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* MODALE */
+#confirmBox {
+  display:none;
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background:rgba(0,0,0,0.7);
+  justify-content:center;
+  align-items:center;
+  z-index:2000;
+}
+
+#confirmInner {
+  background:#1f2937;
+  padding:20px;
+  border-radius:10px;
+  width:80%;
+  max-width:500px;
+  color:white;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <img src="logo1.png" class="logo">
+  <img src="logo2.png" class="logo">
+</header>
+
+<div class="separator"></div>
+
+<div class="container">
+<h1>Vota il progetto preferito - LAB2GO</h1>
+<div id="voteContainer"></div>
+</div>
+
+<!-- MODALE -->
+<div id="confirmBox">
+  <div id="confirmInner">
+    <h2>Conferma voto</h2>
+    <div id="confirmText"></div>
+
+    <br>
+
+    <button onclick="sendVotes()" style="background:green;">
+      Conferma
+    </button>
+
+    <button onclick="closeConfirm()" style="background:red;">
+      Annulla
+    </button>
+  </div>
+</div>
 
 <script>
+
+window.addEventListener("DOMContentLoaded", () => {
 
 const percorsi = {
   "Fisica - Esperimento": [
@@ -88,76 +217,103 @@ const percorsi = {
 const token = new URLSearchParams(window.location.search).get("token");
 
 if (!token) {
-  document.body.innerHTML = "<h2 style='color:red;text-align:center'>Token mancante. Riprova dal QR.</h2>";
-  throw new Error("Token mancante");
+  document.body.innerHTML = "<h2 style='color:red'>Token mancante</h2>";
+  return;
 }
 
 const MAX_VOTES = 2;
-
 let votiSelezionati = [];
 
-// =========================
-// CREA FORM (IMPORTANTE: ora esiste davvero)
-// =========================
+const container = document.getElementById("voteContainer");
+
+// COSTRUZIONE UI
+Object.keys(percorsi).forEach(percorso => {
+
+  const div = document.createElement("div");
+  div.className = "percorso";
+  div.style.background = "#3b82f6";
+
+  const h2 = document.createElement("h2");
+  h2.innerText = percorso;
+  div.appendChild(h2);
+
+  const table = document.createElement("table");
+
+  percorsi[percorso].forEach(item => {
+
+    const tr = document.createElement("tr");
+
+    const td1 = document.createElement("td");
+    td1.innerText = item.nome;
+
+    const td2 = document.createElement("td");
+    td2.innerText = item.titolo;
+
+    const td3 = document.createElement("td");
+
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.name = "choice";
+    input.value = `${percorso}|${item.nome}`;
+
+    td3.appendChild(input);
+
+    tr.appendChild(td1);
+    tr.appendChild(td2);
+    tr.appendChild(td3);
+
+    table.appendChild(tr);
+  });
+
+  div.appendChild(table);
+  container.appendChild(div);
+});
+
+// FORM
 const form = document.createElement("form");
+const btn = document.createElement("button");
+btn.innerText = "Invia voto";
 
-// =========================
-// SUBMIT (apre conferma, NON invia)
-// =========================
+form.appendChild(btn);
+container.appendChild(form);
+
+// SUBMIT
 form.addEventListener("submit", (e) => {
-
   e.preventDefault();
 
   const checked = document.querySelectorAll("input[name='choice']:checked");
 
-  if (checked.length === 0) {
-    alert("Seleziona almeno un progetto");
-    return;
-  }
+  if (checked.length === 0) return alert("Seleziona almeno un progetto");
+  if (checked.length > MAX_VOTES) return alert("Massimo 2 voti");
 
-  if (checked.length > MAX_VOTES) {
-    alert("Massimo 2 voti");
-    return;
-  }
-
-  const values = Array.from(checked).map(c => c.value);
-
-  const unique = new Set(values);
-  if (unique.size !== values.length) {
-    alert("Hai selezionato duplicati");
-    return;
-  }
-
-  votiSelezionati = values;
+  votiSelezionati = Array.from(checked).map(c => c.value);
 
   let text = "";
 
-  values.forEach(v => {
+  votiSelezionati.forEach(v => {
     const [p, s] = v.split("|");
     text += `✔ ${p} - ${s}<br><br>`;
   });
 
-  if (values.length === 1) {
-    text += "Hai ancora un voto disponibile.";
-  } else {
-    text += "Hai selezionato 2 progetti. Sei sicuro?";
-  }
+  text += votiSelezionati.length === 1
+    ? "Hai ancora un voto disponibile."
+    : "Sei sicuro di confermare?";
 
   document.getElementById("confirmText").innerHTML = text;
   document.getElementById("confirmBox").style.display = "flex";
 });
 
-// append form al DOM (IMPORTANTE)
-document.getElementById("voteContainer").appendChild(form);
+// MODALE
+window.closeConfirm = () => {
+  document.getElementById("confirmBox").style.display = "none";
+};
 
-// =========================
-// INVIO VERO VOTO
-// =========================
-async function sendVotes() {
+// INVIO
+window.sendVotes = async () => {
 
-  for (let scelta of votiSelezionati) {
+  for (let v of votiSelezionati) {
 
-    const [percorso, scuola] = scelta.split("|");
+    const [percorso, scuola] = v.split("|");
 
     const res = await fetch("/vote", {
       method: "POST",
@@ -167,26 +323,17 @@ async function sendVotes() {
 
     const data = await res.json();
 
-    if (!data.success) {
-      alert(data.error);
-      return;
-    }
+    if (!data.success) return alert(data.error);
   }
 
   alert("Voto registrato!");
-
-  document.querySelectorAll("input[name='choice']")
-    .forEach(c => c.checked = false);
-
   votiSelezionati = [];
   closeConfirm();
-}
+};
 
-// =========================
-// CHIUDI MODALE
-// =========================
-function closeConfirm() {
-  document.getElementById("confirmBox").style.display = "none";
-}
+});
 
 </script>
+
+</body>
+</html>
