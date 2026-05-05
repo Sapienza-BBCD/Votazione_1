@@ -1,292 +1,298 @@
-const express = require("express");
-const sqlite3 = require("sqlite3").verbose();
-const cors = require("cors");
-const { v4: uuidv4 } = require("uuid");
-const path = require("path");
-const QRCode = require("qrcode");
-const PDFDocument = require("pdfkit");
-const archiver = require("archiver");
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Vota il progetto preferito - LAB2GO</title>
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #e6f0ff;
+  margin: 0;
+  text-align: center;
+}
 
-// =========================
-// CONFIG
-// =========================
-const BASE_URL = process.env.BASE_URL || "https://votazione-1.onrender.com";
+header {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  background: #fff;
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 20px;
+  z-index: 1000;
+}
 
-const PARTICIPANTI = 300;
+.logo { height: 60px; }
+
+.separator {
+  position: fixed;
+  top: 80px;
+  width: 100%;
+  height: 6px;
+  background: #e0e0e0;
+}
+
+.container {
+  max-width: 1000px;
+  margin: 140px auto 30px;
+}
+
+h1 { color: #822433; }
+
+.percorso {
+  border-radius: 10px;
+  margin-bottom: 30px;
+  padding: 15px;
+  color: #fff;
+}
+
+.table-container {
+  background: #ffffffcc;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+table { width: 100%; }
+
+td {
+  padding: 8px;
+  border-bottom: 1px solid #ddd;
+  color: #800000;
+  font-weight: bold;
+}
+
+button {
+  margin-top: 20px;
+  padding: 12px 30px;
+  font-size: 18px;
+  background: #007BFF;
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <img src="logo1.png" class="logo">
+  <img src="logo2.png" class="logo">
+</header>
+
+<div class="separator"></div>
+
+<div class="container">
+
+<h1>Vota il progetto preferito - LAB2GO</h1>
+
+<div id="voteContainer"></div>
+
+</div>
+
+<script>
+
+// 🔥 NUOVA STRUTTURA (percorso + categoria)
+const percorsi = {
+
+"Fisica - Esperimento": [
+  { nome: "Gaetano De Sanctis", titolo: "Sensori, Motori e Gravità" },
+  { nome: "G. Lombardo Radice", titolo: "Ipnosi dei pendoli magici" },
+  { nome: "G. Lombardo Radice", titolo: "Tubo di Quincke" },
+  { nome: "G. Lombardo Radice", titolo: "Polarizzazione della luce" },
+  { nome: "Augusto Righi Roma", titolo: "Sensore ultrasuoni HC SR04" },
+  { nome: "Vittoria Colonna", titolo: "Il pendolo nella storia" },
+  { nome: "Pilo Albertelli Roma", titolo: "Il coherer e onde elettromagnetiche" },
+  { nome: "Flacco Potenza", titolo: "Diffrazione ottica" }
+],
+
+"Chimica - Esperimento": [
+  { nome: "Terenzio Mamiani", titolo: "Chimica e sostenibilità" },
+  { nome: "Cavour", titolo: "Pigmenti, gas ed elettrochimica" },
+  { nome: "Pertini Falcone", titolo: "Percorsi di chimica sperimentale" }
+],
+
+"Biologia Vegetale - Esperimento": [
+  { nome: "ITA G. Garibaldi Roma", titolo: "Filiera Mais No-OGM (PCR)" },
+  { nome: "ITA Garibaldi Roma + Liceo Righi Roma", titolo: "Tiny Forest e suolo" }
+],
+
+"Fisica - Poster": [
+  { nome: "Vian Bracciano", titolo: "Legge di Lambert-Beer" },
+  { nome: "Gaetano De Sanctis", titolo: "Meccanica con Arduino" },
+  { nome: "Nomentano", titolo: "Muoni e raggi cosmici" },
+  { nome: "G. Lombardo Radice", titolo: "Onde che si incontrano" },
+  { nome: "Polo Liceale Alighieri", titolo: "Virgo e onde gravitazionali" },
+  { nome: "Polo Liceale Alighieri", titolo: "Limite di Heisenberg" },
+  { nome: "Vittoria Colonna", titolo: "Il pendolo nella storia" },
+  { nome: "Flacco Potenza", titolo: "Biomeccanica leve" }
+],
+
+"Scienze della Terra - Poster": [
+  { nome: "Labriola", titolo: "Esperienza Lab2Go" },
+  { nome: "Galileo Galilei Roma", titolo: "Rocce, minerali e paesaggi" }
+],
+
+"Chimica - Poster": [
+  { nome: "Cavour", titolo: "Pigmenti e acidità" },
+  { nome: "Evangelista Torricelli", titolo: "Chimica quotidiana" },
+  { nome: "IT Agrario Giuseppe Garibaldi", titolo: "Produzione metano (BMT)" }
+],
+
+"Biologia Vegetale - Poster": [
+  { nome: "Augusto Righi Roma", titolo: "Tiny Forest metagenomica" },
+  { nome: "Augusto Righi Roma", titolo: "Analisi Tiny Forest" }
+],
+
+"Biologia Animale - Poster": [
+  { nome: "Livia Bottardi", titolo: "Cellule al microscopio" }
+],
+
+"Musei Scientifici - Poster": [
+  { nome: "Massimiliano Massimo", titolo: "Museo scientifico" },
+  { nome: "Pertini Falcone", titolo: "Museo via Rugantino" }
+],
+
+"Fisica - Talk": [
+  { nome: "G. Lombardo Radice", titolo: "Punto luminoso di Poisson" },
+  { nome: "Polo Liceale Alighieri", titolo: "Vuoto e incertezza" }
+],
+
+"Chimica - Talk": [
+  { nome: "Liceo Terenzio Mamiani", titolo: "Chimica e sostenibilità" },
+  { nome: "Liceo Scientifico Cavour", titolo: "Pigmenti e acidità" },
+  { nome: "Evangelista Torricelli", titolo: "Chimica quotidiana" }
+],
+
+"Biologia Vegetale - Talk": [
+  { nome: "ITA Garibaldi Roma", titolo: "Tiny Forest avanzata" },
+  { nome: "J.V. Neumann", titolo: "Viroma piante urbane" },
+  { nome: "Tullio Levi Civita", titolo: "Laboratorio botanica" },
+  { nome: "Pertini Falcone", titolo: "Laboratori biologia vegetale" }
+],
+
+"Biologia Animale - Talk": [
+  { nome: "J.M. Keynes", titolo: "Dal procariote all’eucariote" },
+  { nome: "Socrate Roma", titolo: "Ricostruzione 3D" }
+]
+
+};
+
+const urlParams = new URLSearchParams(window.location.search);
+const token = urlParams.get("token");
 const MAX_VOTES = 2;
 
-// =========================
-// MIDDLEWARE
-// =========================
-app.use(cors());
-app.use(express.json());
-app.use(express.static("public"));
+const voteContainer = document.getElementById("voteContainer");
 
-// =========================
-// DB
-// =========================
-const db = new sqlite3.Database("votes.db");
+// CREAZIONE UI
+Object.keys(percorsi).sort().forEach(percorso => {
 
-// =========================
-// INIT DB
-// =========================
-db.serialize(() => {
+  const div = document.createElement("div");
+  div.className = "percorso";
+  div.style.background = "#3b82f6";
 
-  db.run(`
-    CREATE TABLE IF NOT EXISTS votes(
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      token TEXT,
-      percorso TEXT,
-      scuola TEXT,
-      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
+  const h2 = document.createElement("h2");
+  h2.innerText = percorso;
+  div.appendChild(h2);
 
-  db.run(`
-    CREATE TABLE IF NOT EXISTS tokens(
-      token TEXT PRIMARY KEY
-    )
-  `);
+  const tableDiv = document.createElement("div");
+  tableDiv.className = "table-container";
 
-  db.run(`
-    CREATE TABLE IF NOT EXISTS settings(
-      key TEXT PRIMARY KEY,
-      value TEXT
-    )
-  `);
+  const table = document.createElement("table");
 
-  // stato iniziale
-  db.get("SELECT value FROM settings WHERE key='stato'", (err, row) => {
-    if (!row) {
-      db.run("INSERT INTO settings(key,value) VALUES('stato','pre')");
-    }
+  percorsi[percorso].forEach(item => {
+
+    const tr = document.createElement("tr");
+
+    const tdNome = document.createElement("td");
+    tdNome.innerText = item.nome;
+
+    const tdTitolo = document.createElement("td");
+    tdTitolo.innerText = item.titolo;
+    tdTitolo.style.fontStyle = "italic";
+
+    const tdCheck = document.createElement("td");
+    const input = document.createElement("input");
+
+    input.type = "checkbox";
+    input.name = "choice";
+
+    // 🔥 IMPORTANTE
+    input.value = `${percorso}|${item.nome}`;
+
+    tdCheck.appendChild(input);
+
+    tr.appendChild(tdNome);
+    tr.appendChild(tdTitolo);
+    tr.appendChild(tdCheck);
+
+    table.appendChild(tr);
+
   });
 
-  // genera token solo se non esistono
-  db.get("SELECT COUNT(*) AS count FROM tokens", (err, row) => {
-    if (row && row.count === 0) {
-      const stmt = db.prepare("INSERT INTO tokens(token) VALUES(?)");
-      for (let i = 0; i < PARTICIPANTI; i++) {
-        stmt.run(uuidv4());
-      }
-      stmt.finalize();
-      console.log("Token generati:", PARTICIPANTI);
-    }
-  });
+  tableDiv.appendChild(table);
+  div.appendChild(tableDiv);
+  voteContainer.appendChild(div);
 
 });
 
-// =========================
-// HELPERS STATO
-// =========================
-function getStato(cb) {
-  db.get("SELECT value FROM settings WHERE key='stato'", (err, row) => {
-    cb(row ? row.value : "pre");
-  });
-}
+// FORM
+const form = document.createElement("form");
 
-function setStato(val, cb) {
-  db.run("UPDATE settings SET value=? WHERE key='stato'", [val], cb);
-}
+const submit = document.createElement("button");
+submit.innerText = "Invia voto";
 
-// =========================
-// ROUTES FRONTEND
-// =========================
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "vote.html"));
-});
+form.appendChild(submit);
+voteContainer.appendChild(form);
 
-app.get("/admin", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "admin-login.html"));
-});
+// INVIO
+form.addEventListener("submit", async (e) => {
 
-// =========================
-// LOGIN (opzionale frontend)
-// =========================
-app.post("/admin-login", (req, res) => {
-  const { password } = req.body;
+  e.preventDefault();
 
-  if (password !== "lab2go") {
-    return res.json({ error: "Password errata" });
+  const checked = document.querySelectorAll("input[name='choice']:checked");
+
+  if (checked.length === 0) {
+    alert("Seleziona almeno un progetto");
+    return;
   }
 
-  res.json({ success: true });
-});
+  if (checked.length > MAX_VOTES) {
+    alert("Massimo 2 voti");
+    return;
+  }
 
-// =========================
-// CONTROLLO VOTAZIONE (SENZA PASSWORD)
-// =========================
-app.get("/open-vote", (req, res) => {
-  setStato("open", () => res.json({ ok: true, stato: "open" }));
-});
+  const percorsiSelezionati = Array.from(checked).map(c => c.value.split("|")[0]);
+  const unici = new Set(percorsiSelezionati);
 
-app.get("/close-vote", (req, res) => {
-  setStato("closed", () => res.json({ ok: true, stato: "closed" }));
-});
+  if (checked.length === 2 && unici.size === 1) {
+    alert("Devi scegliere percorsi diversi");
+    return;
+  }
 
-app.get("/reset-vote", (req, res) => {
-  setStato("pre", () => res.json({ ok: true, stato: "pre" }));
-});
+  for (let scelta of checked) {
 
-// reset voti
-app.get("/reset-votes", (req, res) => {
-  db.run("DELETE FROM votes", () => {
-    res.json({ ok: true });
-  });
-});
+    const [percorso, scuola] = scelta.value.split("|");
 
-// =========================
-// VOTO
-// =========================
-app.post("/vote", (req, res) => {
-
-  const { token, percorso, scuola } = req.body;
-
-  getStato((stato) => {
-
-    if (stato === "pre") return res.json({ error: "Votazione non aperta" });
-    if (stato === "closed") return res.json({ error: "Votazione chiusa" });
-
-    db.get("SELECT * FROM tokens WHERE token=?", [token], (err, row) => {
-
-      if (!row) return res.json({ error: "Token non valido" });
-
-      db.get(
-        "SELECT COUNT(*) as count FROM votes WHERE token=?",
-        [token],
-        (err, result) => {
-
-          if (result.count >= MAX_VOTES) {
-            return res.json({ error: "Limite voti raggiunto" });
-          }
-
-          db.run(
-            "INSERT INTO votes(token,percorso,scuola) VALUES(?,?,?)",
-            [token, percorso, scuola],
-            () => res.json({ success: true })
-          );
-
-        }
-      );
-
+    const res = await fetch("/vote", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ token, percorso, scuola })
     });
 
-  });
+    const data = await res.json();
 
-});
-
-// =========================
-// RISULTATI
-// =========================
-app.get("/results-data", (req, res) => {
-
-  db.all(`
-    SELECT percorso, scuola, COUNT(*) as votes
-    FROM votes
-    GROUP BY percorso, scuola
-    ORDER BY percorso, votes DESC
-  `, (err, rows) => {
-
-    db.get("SELECT COUNT(*) as totale FROM votes", (err2, tot) => {
-
-      res.json({
-        totale: tot?.totale || 0,
-        risultati: rows
-      });
-
-    });
-
-  });
-
-});
-
-// =========================
-// TOKENS
-// =========================
-app.get("/tokens", (req, res) => {
-  db.all("SELECT token FROM tokens", (err, rows) => {
-    res.json(rows);
-  });
-});
-
-// =========================
-// DOWNLOAD QR ZIP
-// =========================
-app.get("/download-qrs", async (req, res) => {
-
-  res.attachment("qrcodes.zip");
-  const archive = archiver("zip");
-  archive.pipe(res);
-
-  db.all("SELECT token FROM tokens", async (err, rows) => {
-
-    for (let i = 0; i < rows.length; i++) {
-      const url = `${BASE_URL}/?token=${rows[i].token}`;
-      const qr = await QRCode.toBuffer(url);
-      archive.append(qr, { name: `qr-${i + 1}.png` });
+    if (!data.success) {
+      alert(data.error);
+      return;
     }
+  }
 
-    archive.finalize();
-  });
-
-});
-
-// =========================
-// PDF QR (GRIGLIA CORRETTA)
-// =========================
-app.get("/print-qrs", async (req, res) => {
-
-  const doc = new PDFDocument({ margin: 30 });
-  res.setHeader("Content-Type", "application/pdf");
-  doc.pipe(res);
-
-  db.all("SELECT token FROM tokens", async (err, rows) => {
-
-    const perRow = 3;
-    const size = 120;
-    const padding = 60;
-
-    let col = 0;
-    let row = 0;
-
-    for (let i = 0; i < rows.length; i++) {
-
-      const url = `${BASE_URL}/?token=${rows[i].token}`;
-      const qr = await QRCode.toDataURL(url);
-      const img = Buffer.from(qr.split(",")[1], "base64");
-
-      const x = 50 + col * (size + padding);
-      const y = 50 + row * (size + 70);
-
-      doc.image(img, x, y, { width: size });
-      doc.text(`QR ${i + 1}`, x, y + size + 5, { width: size, align: "center" });
-
-      col++;
-
-      if (col === perRow) {
-        col = 0;
-        row++;
-      }
-
-      if (row === 4) {
-        doc.addPage();
-        row = 0;
-      }
-
-    }
-
-    doc.end();
-
-  });
+  alert("Voto registrato!");
 
 });
+</script>
 
-// =========================
-// START
-// =========================
-app.listen(PORT, () => {
-  console.log("Server attivo su porta", PORT);
-});
+</body>
+</html>
