@@ -129,7 +129,7 @@ function getTitolo(percorso, scuola) {
 }
 
 async function fetchResults() {
-  const res = await fetch("/results-data");
+  const res = await fetch("/results-data?t=" + Date.now());
   return await res.json();
 }
 
@@ -229,7 +229,7 @@ async function update(){
 }
 
 update();
-setInterval(update, 2000);
+setInterval(update, 3000);
 
 </script>
 
