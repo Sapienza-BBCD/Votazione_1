@@ -32,7 +32,7 @@ app.use(cors());
 const db = new sqlite3.Database("votes.db");
 
 // =========================
-// INIT DB
+// INIT DATABASE
 // =========================
 db.serialize(() => {
 
@@ -59,7 +59,7 @@ db.serialize(() => {
     )
   `);
 
-  // stato default
+  // stato iniziale
   db.get("SELECT value FROM settings WHERE key='stato'", (err, row) => {
     if (!row) {
       db.run("INSERT INTO settings(key,value) VALUES('stato','pre')");
@@ -94,7 +94,31 @@ function setStato(val, cb) {
 }
 
 // =========================
-// VOTO
+// ROUTES BASE
+// =========================
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "vote.html"));
+});
+
+app.get("/admin", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "admin-login.html"));
+});
+
+// =========================
+// ADMIN LOGIN (semplice)
+// =========================
+app.post("/admin-login", (req, res) => {
+  const { password } = req.body;
+
+  if (password !== ADMIN_PASSWORD) {
+    return res.json({ error: "Password errata" });
+  }
+
+  res.json({ success: true });
+});
+
+// =========================
+// VOTAZIONE
 // =========================
 app.post("/vote", (req, res) => {
 
@@ -102,13 +126,8 @@ app.post("/vote", (req, res) => {
 
   getStato((stato) => {
 
-    if (stato === "pre") {
-      return res.json({ error: "Votazione non aperta" });
-    }
-
-    if (stato === "closed") {
-      return res.json({ error: "Votazione chiusa" });
-    }
+    if (stato === "pre") return res.json({ error: "Votazione non aperta" });
+    if (stato === "closed") return res.json({ error: "Votazione chiusa" });
 
     db.get("SELECT * FROM tokens WHERE token=?", [token], (err, row) => {
 
@@ -139,23 +158,6 @@ app.post("/vote", (req, res) => {
 });
 
 // =========================
-// ADMIN PAGES
-// =========================
-app.get("/admin", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "admin-login.html"));
-});
-
-app.post("/admin-login", (req, res) => {
-  const { password } = req.body;
-
-  if (password !== ADMIN_PASSWORD) {
-    return res.json({ error: "Password errata" });
-  }
-
-  res.json({ success: true });
-});
-
-// =========================
 // STATO VOTAZIONE
 // =========================
 app.get("/admin/open", (req, res) => {
@@ -173,17 +175,13 @@ app.get("/admin/reset", (req, res) => {
   setStato("pre", () => res.json({ ok: true }));
 });
 
-// =========================
-// RESET VOTI
-// =========================
+// reset voti
 app.get("/admin/reset-votes", (req, res) => {
   if (req.query.password !== ADMIN_PASSWORD) return res.json({ error: "No" });
   db.run("DELETE FROM votes", () => res.json({ ok: true }));
 });
 
-// =========================
-// RIGENERA TOKEN (NUOVA SESSIONE QR)
-// =========================
+// rigenera QR (NUOVA SESSIONE)
 app.get("/admin/regenerate-tokens", (req, res) => {
 
   if (req.query.password !== ADMIN_PASSWORD) return res.json({ error: "No" });
@@ -197,23 +195,19 @@ app.get("/admin/regenerate-tokens", (req, res) => {
     }
 
     stmt.finalize(() => {
-      res.json({ ok: true, message: "Token rigenerati" });
+      res.json({ ok: true });
     });
 
   });
 
 });
 
-// =========================
-// STATO PUBBLICO
-// =========================
+// stato pubblico
 app.get("/state", (req, res) => {
   getStato((stato) => res.json({ stato }));
 });
 
-// =========================
-// RISULTATI
-// =========================
+// risultati
 app.get("/results-data", (req, res) => {
 
   db.all(`
@@ -236,9 +230,7 @@ app.get("/results-data", (req, res) => {
 
 });
 
-// =========================
-// TOKENS
-// =========================
+// tokens
 app.get("/tokens", (req, res) => {
   db.all("SELECT token FROM tokens", (err, rows) => {
     res.json(rows);
@@ -246,7 +238,7 @@ app.get("/tokens", (req, res) => {
 });
 
 // =========================
-// QR ZIP
+// DOWNLOAD QR ZIP
 // =========================
 app.get("/download-qrs", async (req, res) => {
 
@@ -268,17 +260,23 @@ app.get("/download-qrs", async (req, res) => {
 });
 
 // =========================
-// PDF QR
+// PDF QR (FIX GRIGLIA PERFETTA)
 // =========================
 app.get("/print-qrs", async (req, res) => {
 
   const doc = new PDFDocument({ margin: 30 });
+
   res.setHeader("Content-Type", "application/pdf");
   doc.pipe(res);
 
   db.all("SELECT token FROM tokens", async (err, rows) => {
 
-    let x = 50, y = 50;
+    const perRow = 3;
+    const size = 120;
+    const padding = 60;
+
+    let col = 0;
+    let row = 0;
 
     for (let i = 0; i < rows.length; i++) {
 
@@ -286,13 +284,22 @@ app.get("/print-qrs", async (req, res) => {
       const qr = await QRCode.toDataURL(url);
       const img = Buffer.from(qr.split(",")[1], "base64");
 
-      doc.image(img, x, y, { width: 100 });
-      doc.text(`QR ${i + 1}`, x, y + 110);
+      const x = 50 + col * (size + padding);
+      const y = 50 + row * (size + 70);
 
-      x += 150;
-      if (x > 400) {
-        x = 50;
-        y += 150;
+      doc.image(img, x, y, { width: size });
+      doc.text(`QR ${i + 1}`, x, y + size + 5, { width: size, align: "center" });
+
+      col++;
+
+      if (col === perRow) {
+        col = 0;
+        row++;
+      }
+
+      if (row === 4) {
+        doc.addPage();
+        row = 0;
       }
 
     }
