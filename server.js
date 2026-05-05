@@ -11,14 +11,14 @@ const PORT = process.env.PORT || 3000;
 const app = express();
 
 // =========================
-// MIDDLEWARE (IMPORTANTE ORDINE CORRETTO)
+// MIDDLEWARE
 // =========================
 app.use(cors());
 app.use(express.json());
 app.use(express.static("public"));
 
 // =========================
-// DATABASE
+// DB
 // =========================
 const db = new sqlite3.Database("votes.db");
 
@@ -49,9 +49,8 @@ db.serialize(() => {
     )
   `);
 
-  // genera token solo se vuoto
   db.get("SELECT COUNT(*) AS count FROM tokens", (err, row) => {
-    if (row && row.count === 0) {
+    if (!err && row && row.count === 0) {
       const stmt = db.prepare("INSERT INTO tokens(token) VALUES(?)");
       for (let i = 0; i < PARTICIPANTI; i++) {
         stmt.run(uuidv4());
@@ -64,15 +63,12 @@ db.serialize(() => {
 });
 
 // =========================
-// HOME
+// PAGES
 // =========================
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "vote.html"));
 });
 
-// =========================
-// ADMIN PAGE
-// =========================
 app.get("/admin", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin-login.html"));
 });
@@ -82,16 +78,14 @@ app.get("/admin", (req, res) => {
 // =========================
 app.post("/admin-login", (req, res) => {
   const { password } = req.body;
-
   if (password !== ADMIN_PASSWORD) {
     return res.json({ error: "Password errata" });
   }
-
   res.json({ success: true });
 });
 
 // =========================
-// STATO VOTAZIONE (FIX: ORA RESTITUISCE JSON)
+// STATO VOTAZIONE
 // =========================
 app.get("/open-vote", (req, res) => {
   statoVotazione = "open";
@@ -112,7 +106,8 @@ app.get("/reset-vote", (req, res) => {
 // RESET VOTI
 // =========================
 app.get("/reset-votes", (req, res) => {
-  db.run("DELETE FROM votes", () => {
+  db.run("DELETE FROM votes", (err) => {
+    if (err) return res.json({ error: "Errore reset voti" });
     res.json({ ok: true });
   });
 });
@@ -124,31 +119,33 @@ app.post("/vote", (req, res) => {
 
   const { token, percorso, scuola } = req.body;
 
-  if (statoVotazione === "pre") {
+  if (statoVotazione === "pre")
     return res.json({ error: "Votazione non aperta" });
-  }
 
-  if (statoVotazione === "closed") {
+  if (statoVotazione === "closed")
     return res.json({ error: "Votazione chiusa" });
-  }
 
   db.get("SELECT * FROM tokens WHERE token=?", [token], (err, row) => {
 
-    if (!row) return res.json({ error: "Token non valido" });
+    if (err || !row)
+      return res.json({ error: "Token non valido" });
 
     db.get(
       "SELECT COUNT(*) as count FROM votes WHERE token=?",
       [token],
       (err, result) => {
 
-        if (result.count >= MAX_VOTES) {
+        if (result && result.count >= MAX_VOTES) {
           return res.json({ error: "Limite voti raggiunto" });
         }
 
         db.run(
           "INSERT INTO votes(token,percorso,scuola) VALUES(?,?,?)",
           [token, percorso, scuola],
-          () => res.json({ success: true })
+          (err) => {
+            if (err) return res.json({ error: "Errore server voto" });
+            res.json({ success: true });
+          }
         );
 
       }
@@ -170,11 +167,15 @@ app.get("/results-data", (req, res) => {
     ORDER BY percorso, votes DESC
   `, (err, rows) => {
 
+    if (err) {
+      return res.json({ totale: 0, risultati: [] });
+    }
+
     db.get("SELECT COUNT(*) as totale FROM votes", (err2, tot) => {
 
       res.json({
         totale: tot?.totale || 0,
-        risultati: rows
+        risultati: rows || []
       });
 
     });
@@ -184,10 +185,11 @@ app.get("/results-data", (req, res) => {
 });
 
 // =========================
-// TOKEN
+// TOKENS
 // =========================
 app.get("/tokens", (req, res) => {
   db.all("SELECT token FROM tokens", (err, rows) => {
+    if (err) return res.json([]);
     res.json(rows);
   });
 });
@@ -204,6 +206,10 @@ app.get("/download-qrs", async (req, res) => {
 
   db.all("SELECT token FROM tokens", async (err, rows) => {
 
+    if (err || !rows) {
+      return archive.finalize();
+    }
+
     for (let i = 0; i < rows.length; i++) {
       const url = `${req.protocol}://${req.get("host")}/?token=${rows[i].token}`;
       const qr = await QRCode.toBuffer(url);
@@ -216,7 +222,7 @@ app.get("/download-qrs", async (req, res) => {
 });
 
 // =========================
-// PDF QR (GRIGLIA STABILE)
+// PDF QR
 // =========================
 app.get("/print-qrs", async (req, res) => {
 
@@ -228,6 +234,11 @@ app.get("/print-qrs", async (req, res) => {
   doc.pipe(res);
 
   db.all("SELECT token FROM tokens", async (err, rows) => {
+
+    if (err || !rows) {
+      doc.end();
+      return;
+    }
 
     const perRow = 3;
     const size = 120;
@@ -247,10 +258,12 @@ app.get("/print-qrs", async (req, res) => {
 
       doc.image(img, x, y, { width: size });
       doc.fontSize(10);
-      doc.text(`QR ${i + 1}`, x, y + size + 5, { width: size, align: "center" });
+      doc.text(`QR ${i + 1}`, x, y + size + 5, {
+        width: size,
+        align: "center"
+      });
 
       col++;
-
       if (col === perRow) {
         col = 0;
         row++;
@@ -269,7 +282,7 @@ app.get("/print-qrs", async (req, res) => {
 });
 
 // =========================
-// START SERVER
+// START
 // =========================
 app.listen(PORT, () => {
   console.log("Server attivo su porta", PORT);
