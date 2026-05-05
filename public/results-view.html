@@ -136,10 +136,19 @@ async function fetchResults() {
 function renderResults(data) {
 
   const container = document.getElementById("resultsContainer");
+
+  // 🔥 svuota sempre tutto
   container.innerHTML = "";
 
   document.getElementById("totalVotes").innerText =
     "Totale voti: " + data.totale;
+
+  // 🔥 FIX FONDAMENTALE
+  if (!data.risultati || data.risultati.length === 0) {
+    container.innerHTML =
+      "<h2 style='text-align:center'>Nessun voto registrato</h2>";
+    return;
+  }
 
   const grouped = {};
 
