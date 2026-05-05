@@ -45,13 +45,30 @@ button:hover {
 <div class="container" id="adminPanel" style="display:none;">
   <button class="btn-open" onclick="fetch('/open-vote').then(r=>r.text()).then(alert)">Apri Votazione</button>
   <button class="btn-close" onclick="fetch('/close-vote').then(r=>r.text()).then(alert)">Chiudi Votazione</button>
-  <button class="btn-reset" onclick="fetch('/reset-vote').then(r=>r.text()).then(alert)">Reset Votazione</button>
+  <button class="btn-reset" onclick="resetAll()">
+  Reset COMPLETO
+</button>
   <br>
   <button class="btn-qr" onclick="window.open('/download-qrs')">Download QR ZIP</button>
   <button class="btn-qr" onclick="window.open('/print-qrs')">Download PDF QR</button>
   <br>
   <button class="btn-results" onclick="window.open('/results-view')">Visualizza Risultati Live</button>
 </div>
+
+<script>
+async function resetAll() {
+
+  if (!confirm("Sei sicuro di voler resettare TUTTI i voti?")) return;
+
+  // 1. reset voti
+  await fetch('/reset-votes');
+
+  // 2. reset stato votazione
+  await fetch('/reset-vote');
+
+  alert("Reset completato");
+}
+</script>
 
 <script>
 // Prompt password all'accesso
