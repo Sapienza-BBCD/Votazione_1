@@ -86,22 +86,27 @@ const percorsi = {
 };
 
 const token = new URLSearchParams(window.location.search).get("token");
+
+if (!token) {
+  document.body.innerHTML = "<h2 style='color:red;text-align:center'>Token mancante. Riprova dal QR.</h2>";
+  throw new Error("Token mancante");
+}
+
 const MAX_VOTES = 2;
 
 let votiSelezionati = [];
-let isSubmitting = false;
 
 // =========================
-// SUBMIT
+// CREA FORM (IMPORTANTE: ora esiste davvero)
+// =========================
+const form = document.createElement("form");
+
+// =========================
+// SUBMIT (apre conferma, NON invia)
 // =========================
 form.addEventListener("submit", (e) => {
 
   e.preventDefault();
-
-  if (!token) {
-    alert("Token mancante. Ricarica dal QR.");
-    return;
-  }
 
   const checked = document.querySelectorAll("input[name='choice']:checked");
 
@@ -126,26 +131,29 @@ form.addEventListener("submit", (e) => {
   votiSelezionati = values;
 
   let text = "";
+
   values.forEach(v => {
     const [p, s] = v.split("|");
     text += `✔ ${p} - ${s}<br><br>`;
   });
 
-  text += (values.length === 1)
-    ? "Hai ancora un voto disponibile."
-    : "Hai selezionato 2 progetti. Sei sicuro?";
+  if (values.length === 1) {
+    text += "Hai ancora un voto disponibile.";
+  } else {
+    text += "Hai selezionato 2 progetti. Sei sicuro?";
+  }
 
   document.getElementById("confirmText").innerHTML = text;
   document.getElementById("confirmBox").style.display = "flex";
 });
 
+// append form al DOM (IMPORTANTE)
+document.getElementById("voteContainer").appendChild(form);
+
 // =========================
-// INVIO
+// INVIO VERO VOTO
 // =========================
 async function sendVotes() {
-
-  if (isSubmitting) return;
-  isSubmitting = true;
 
   for (let scelta of votiSelezionati) {
 
@@ -161,7 +169,6 @@ async function sendVotes() {
 
     if (!data.success) {
       alert(data.error);
-      isSubmitting = false;
       return;
     }
   }
@@ -173,8 +180,13 @@ async function sendVotes() {
 
   votiSelezionati = [];
   closeConfirm();
+}
 
-  isSubmitting = false;
+// =========================
+// CHIUDI MODALE
+// =========================
+function closeConfirm() {
+  document.getElementById("confirmBox").style.display = "none";
 }
 
 </script>
