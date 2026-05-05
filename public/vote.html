@@ -71,6 +71,27 @@ button {
   border-radius: 8px;
   cursor: pointer;
 }
+
+/* 🔥 MODALE CONFERMA */
+#confirmBox {
+  display:none;
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background:rgba(0,0,0,0.7);
+  justify-content:center;
+  align-items:center;
+  z-index:2000;
+}
+
+#confirmInner {
+  background:#1f2937;
+  padding:20px;
+  border-radius:10px;
+  width:80%;
+  max-width:500px;
+  color:white;
+}
 </style>
 </head>
 
@@ -84,18 +105,34 @@ button {
 <div class="separator"></div>
 
 <div class="container">
-
 <h1>Vota il progetto preferito - LAB2GO</h1>
-
 <div id="voteContainer"></div>
+</div>
 
+<!-- 🔥 MODALE CONFERMA -->
+<div id="confirmBox">
+  <div id="confirmInner">
+    <h2>Conferma voto</h2>
+    <div id="confirmText"></div>
+
+    <br>
+
+    <button onclick="sendVotes()" style="background:green;">
+      Conferma
+    </button>
+
+    <button onclick="closeConfirm()" style="background:red;">
+      Annulla
+    </button>
+  </div>
 </div>
 
 <script>
 
-// 🔥 NUOVA STRUTTURA (percorso + categoria)
+// =========================
+// DATI
+// =========================
 const percorsi = {
-
 "Fisica - Esperimento": [
   { nome: "Gaetano De Sanctis", titolo: "Sensori, Motori e Gravità" },
   { nome: "G. Lombardo Radice", titolo: "Ipnosi dei pendoli magici" },
@@ -111,81 +148,20 @@ const percorsi = {
   { nome: "Terenzio Mamiani", titolo: "Chimica e sostenibilità" },
   { nome: "Cavour", titolo: "Pigmenti, gas ed elettrochimica" },
   { nome: "Pertini Falcone", titolo: "Percorsi di chimica sperimentale" }
-],
-
-"Biologia Vegetale - Esperimento": [
-  { nome: "ITA G. Garibaldi Roma", titolo: "Filiera Mais No-OGM (PCR)" },
-  { nome: "ITA Garibaldi Roma + Liceo Righi Roma", titolo: "Tiny Forest e suolo" }
-],
-
-"Fisica - Poster": [
-  { nome: "Vian Bracciano", titolo: "Legge di Lambert-Beer" },
-  { nome: "Gaetano De Sanctis", titolo: "Meccanica con Arduino" },
-  { nome: "Nomentano", titolo: "Muoni e raggi cosmici" },
-  { nome: "G. Lombardo Radice", titolo: "Onde che si incontrano" },
-  { nome: "Polo Liceale Alighieri", titolo: "Virgo e onde gravitazionali" },
-  { nome: "Polo Liceale Alighieri", titolo: "Limite di Heisenberg" },
-  { nome: "Vittoria Colonna", titolo: "Il pendolo nella storia" },
-  { nome: "Flacco Potenza", titolo: "Biomeccanica leve" }
-],
-
-"Scienze della Terra - Poster": [
-  { nome: "Labriola", titolo: "Esperienza Lab2Go" },
-  { nome: "Galileo Galilei Roma", titolo: "Rocce, minerali e paesaggi" }
-],
-
-"Chimica - Poster": [
-  { nome: "Cavour", titolo: "Pigmenti e acidità" },
-  { nome: "Evangelista Torricelli", titolo: "Chimica quotidiana" },
-  { nome: "IT Agrario Giuseppe Garibaldi", titolo: "Produzione metano (BMT)" }
-],
-
-"Biologia Vegetale - Poster": [
-  { nome: "Augusto Righi Roma", titolo: "Tiny Forest metagenomica" },
-  { nome: "Augusto Righi Roma", titolo: "Analisi Tiny Forest" }
-],
-
-"Biologia Animale - Poster": [
-  { nome: "Livia Bottardi", titolo: "Cellule al microscopio" }
-],
-
-"Musei Scientifici - Poster": [
-  { nome: "Massimiliano Massimo", titolo: "Museo scientifico" },
-  { nome: "Pertini Falcone", titolo: "Museo via Rugantino" }
-],
-
-"Fisica - Talk": [
-  { nome: "G. Lombardo Radice", titolo: "Punto luminoso di Poisson" },
-  { nome: "Polo Liceale Alighieri", titolo: "Vuoto e incertezza" }
-],
-
-"Chimica - Talk": [
-  { nome: "Liceo Terenzio Mamiani", titolo: "Chimica e sostenibilità" },
-  { nome: "Liceo Scientifico Cavour", titolo: "Pigmenti e acidità" },
-  { nome: "Evangelista Torricelli", titolo: "Chimica quotidiana" }
-],
-
-"Biologia Vegetale - Talk": [
-  { nome: "ITA Garibaldi Roma", titolo: "Tiny Forest avanzata" },
-  { nome: "J.V. Neumann", titolo: "Viroma piante urbane" },
-  { nome: "Tullio Levi Civita", titolo: "Laboratorio botanica" },
-  { nome: "Pertini Falcone", titolo: "Laboratori biologia vegetale" }
-],
-
-"Biologia Animale - Talk": [
-  { nome: "J.M. Keynes", titolo: "Dal procariote all’eucariote" },
-  { nome: "Socrate Roma", titolo: "Ricostruzione 3D" }
 ]
-
 };
 
-const urlParams = new URLSearchParams(window.location.search);
-const token = urlParams.get("token");
+// =========================
+const token = new URLSearchParams(window.location.search).get("token");
 const MAX_VOTES = 2;
 
+let votiSelezionati = [];
+
+// =========================
+// UI CREATION
+// =========================
 const voteContainer = document.getElementById("voteContainer");
 
-// CREAZIONE UI
 Object.keys(percorsi).sort().forEach(percorso => {
 
   const div = document.createElement("div");
@@ -210,15 +186,12 @@ Object.keys(percorsi).sort().forEach(percorso => {
 
     const tdTitolo = document.createElement("td");
     tdTitolo.innerText = item.titolo;
-    tdTitolo.style.fontStyle = "italic";
 
     const tdCheck = document.createElement("td");
     const input = document.createElement("input");
 
     input.type = "checkbox";
     input.name = "choice";
-
-    // 🔥 IMPORTANTE
     input.value = `${percorso}|${item.nome}`;
 
     tdCheck.appendChild(input);
@@ -228,16 +201,16 @@ Object.keys(percorsi).sort().forEach(percorso => {
     tr.appendChild(tdCheck);
 
     table.appendChild(tr);
-
   });
 
   tableDiv.appendChild(table);
   div.appendChild(tableDiv);
   voteContainer.appendChild(div);
-
 });
 
+// =========================
 // FORM
+// =========================
 const form = document.createElement("form");
 
 const submit = document.createElement("button");
@@ -246,8 +219,10 @@ submit.innerText = "Invia voto";
 form.appendChild(submit);
 voteContainer.appendChild(form);
 
-// INVIO
-form.addEventListener("submit", async (e) => {
+// =========================
+// SUBMIT → SOLO CONFERMA
+// =========================
+form.addEventListener("submit", (e) => {
 
   e.preventDefault();
 
@@ -263,17 +238,41 @@ form.addEventListener("submit", async (e) => {
     return;
   }
 
-  const percorsiSelezionati = Array.from(checked).map(c => c.value.split("|")[0]);
-  const unici = new Set(percorsiSelezionati);
+  votiSelezionati = Array.from(checked).map(c => c.value);
 
-  if (checked.length === 2 && unici.size === 1) {
-    alert("Devi scegliere percorsi diversi");
-    return;
+  let text = "";
+
+  votiSelezionati.forEach(v => {
+    const [percorso, scuola] = v.split("|");
+    text += `✔ ${percorso} - ${scuola}<br><br>`;
+  });
+
+  if (votiSelezionati.length === 1) {
+    text += "Hai ancora un voto disponibile.";
+  } else {
+    text += "Hai selezionato 2 progetti. Sei sicuro?";
   }
 
-  for (let scelta of checked) {
+  document.getElementById("confirmText").innerHTML = text;
+  document.getElementById("confirmBox").style.display = "flex";
+});
 
-    const [percorso, scuola] = scelta.value.split("|");
+// =========================
+// CHIUDI MODALE
+// =========================
+function closeConfirm() {
+  document.getElementById("confirmBox").style.display = "none";
+  votiSelezionati = [];
+}
+
+// =========================
+// INVIO VERO VOTO
+// =========================
+async function sendVotes() {
+
+  for (let scelta of votiSelezionati) {
+
+    const [percorso, scuola] = scelta.split("|");
 
     const res = await fetch("/vote", {
       method: "POST",
@@ -290,8 +289,9 @@ form.addEventListener("submit", async (e) => {
   }
 
   alert("Voto registrato!");
+  closeConfirm();
+}
 
-});
 </script>
 
 </body>
