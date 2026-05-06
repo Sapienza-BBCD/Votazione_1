@@ -310,9 +310,10 @@ form.appendChild(submitBtn);
 document.querySelector(".container").appendChild(form);
 
 // =========================
-// SUBMIT VOTO
+// SUBMIT VOTO (APRE MODALE)
 // =========================
-form.addEventListener("submit", async (e) => {
+
+form.addEventListener("submit", (e) => {
   e.preventDefault();
 
   const checked = document.querySelectorAll("input[name='choice']:checked");
@@ -327,27 +328,45 @@ form.addEventListener("submit", async (e) => {
     return;
   }
 
-  // =========================
-  // CONTROLLO DISCIPLINE
-  // =========================
   const discipline = Array.from(checked).map(c =>
     getDisciplina(c.value.split("|")[0])
   );
 
   const uniche = new Set(discipline);
 
-if (checked.length === 2 && uniche.size === 1) {
-  alert("Devi scegliere due discipline diverse (es. Fisica + Chimica)");
+  if (checked.length === 2 && uniche.size === 1) {
+    alert("Devi scegliere due discipline diverse");
+    checked[checked.length - 1].checked = false;
+    return;
+  }
 
-  // 👉 rimuove automaticamente l'ultima selezione
-  checked[checked.length - 1].checked = false;
+  openConfirm(checked);
+});
 
-  return;
+function openConfirm(checked) {
+  const confirmBox = document.getElementById("confirmBox");
+  const confirmText = document.getElementById("confirmText");
+
+  confirmText.innerHTML = "";
+
+  checked.forEach(c => {
+    const [percorso, scuola] = c.value.split("|");
+
+    const p = document.createElement("p");
+    p.innerText = `${percorso} → ${scuola}`;
+    confirmText.appendChild(p);
+  });
+
+  confirmBox.style.display = "flex";
 }
 
-  // =========================
-  // INVIO VOTI
-  // =========================
+function closeConfirm() {
+  document.getElementById("confirmBox").style.display = "none";
+}
+async function sendVotes() {
+
+  const checked = document.querySelectorAll("input[name='choice']:checked");
+
   for (let scelta of checked) {
 
     const [percorso, scuola] = scelta.value.split("|");
@@ -372,15 +391,13 @@ if (checked.length === 2 && uniche.size === 1) {
     }
   }
 
-  // =========================
-  // SUCCESSO
-  // =========================
   alert("Voto registrato con successo!");
 
-  // reset checkbox
   document.querySelectorAll("input[name='choice']")
     .forEach(c => c.checked = false);
-});
+
+  closeConfirm();
+}
 
 </script>
 </body>
