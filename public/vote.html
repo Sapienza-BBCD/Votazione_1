@@ -229,65 +229,77 @@ const percorsi = {
   ]
 };
 
-const token = new URLSearchParams(window.location.search).get("token");
+// =========================
+// TOKEN
+// =========================
+const urlParams = new URLSearchParams(window.location.search);
+const token = urlParams.get("token");
 
 if (!token) {
-    console.warn("Token mancante (modalità test)");
-    }
+  document.body.innerHTML = "<h2>Accesso non valido: usa il QR code</h2>";
+  throw new Error("Token mancante");
+}
 
+// =========================
+// CONFIG
+// =========================
 const MAX_VOTES = 2;
-let votiSelezionati = [];
-let isSubmitting = false;
+
+// prende la disciplina (Fisica, Chimica, ecc.)
+function getDisciplina(percorso) {
+  return percorso.split(" - ")[0];
+}
 
 // =========================
-// UI
+//UI
 // =========================
-const container = document.getElementById("voteContainer");
+const voteContainer = document.getElementById("voteContainer");
+Object.keys(percorsi).sort().forEach(percorso => {
+    const div = document.createElement("div");
+    div.className = "percorso"; div.style.background = "#3b82f6";
+    const h2 = document.createElement("h2");
+    h2.innerText = percorso; div.appendChild(h2);
+    const table = document.createElement("table");
 
-Object.keys(percorsi).forEach(percorso => {
-
-  const div = document.createElement("div");
-  div.className = "percorso";
-
-  div.style.background = "#f8fafc";
-  div.style.color = "#111";
-
-  div.innerHTML = `<h2>${percorso}</h2>`;
-
-  const table = document.createElement("table");
-
-  percorsi[percorso].forEach(item => {
-
-    const tr = document.createElement("tr");
+percorsi[percorso].forEach(item => {
+  const tr = document.createElement("tr");
 
     tr.innerHTML = `
-      <td class="scuola">${item.nome}</td>
-      <td class="titolo">${item.titolo}</td>
-      <td><input type="checkbox" name="choice" value="${percorso}|${item.nome}"></td>
+      <td>${item.nome}</td>
+      <td style="font-style:italic;">${item.titolo}</td>
+      <td>
+        <input type="checkbox" name="choice" value="${percorso}|${item.nome}">
+      </td>
 `   ;
 
-    table.appendChild(tr);
-  });
-
-  div.appendChild(table);
-  container.appendChild(div);
+  table.appendChild(tr);
+});
+       
+    div.appendChild(table);
+    voteContainer.appendChild(div);
 });
 
+
+// =========================
 // FORM
+// =========================
 const form = document.createElement("form");
-form.innerHTML = `<button type="submit">Invia voto</button>`;
-container.appendChild(form);
+form.style.marginTop = "20px";
+
+const submitBtn = document.createElement("button");
+submitBtn.type = "submit";
+submitBtn.innerText = "Invia voto";
+
+form.appendChild(submitBtn);
+
+// IMPORTANTISSIMO: mettilo fuori dalle card, non dentro voteContainer
+document.querySelector(".container").appendChild(form);
 
 // =========================
-// PRE-CHECK
+// SUBMIT VOTO
 // =========================
-form.addEventListener("submit", (e) => {
+form.addEventListener("submit", async (e) => {
   e.preventDefault();
-
-  if (!token) {
-    alert("Devi usare il QR code per votare");
-    return;
-  }
 
   const checked = document.querySelectorAll("input[name='choice']:checked");
 
@@ -301,82 +313,57 @@ form.addEventListener("submit", (e) => {
     return;
   }
 
-  // ✅ controllo percorsi diversi
-  const percorsiSelezionati = Array.from(checked).map(c => c.value.split("|")[0]);
-  const unici = new Set(percorsiSelezionati);
+  // =========================
+  // CONTROLLO DISCIPLINE
+  // =========================
+  const discipline = Array.from(checked).map(c =>
+    getDisciplina(c.value.split("|")[0])
+  );
 
-  if (checked.length === 2 && unici.size === 1) {
-    alert("Devi scegliere percorsi diversi");
+  const uniche = new Set(discipline);
+
+  if (checked.length === 2 && uniche.size === 1) {
+    alert("Devi scegliere due discipline diverse (es. Fisica + Chimica)");
     return;
   }
 
-  votiSelezionati = Array.from(checked).map(c => c.value);
+  // =========================
+  // INVIO VOTI
+  // =========================
+  for (let scelta of checked) {
 
-  let text = votiSelezionati.map(v => {
-    const [p, s] = v.split("|");
-    return `✔ ${p} - ${s}`;
-  }).join("<br><br>");
+    const [percorso, scuola] = scelta.value.split("|");
 
-  text += votiSelezionati.length === 1
-    ? "<br><br>Hai ancora un voto disponibile."
-    : "<br><br>Sei sicuro di voler confermare 2 voti?";
-
-  document.getElementById("confirmText").innerHTML = text;
-  document.getElementById("confirmBox").style.display = "flex";
-});
-
-// =========================
-// CHIUDI MODALE
-// =========================
-function closeConfirm() {
-  document.getElementById("confirmBox").style.display = "none";
-}
-
-// =========================
-// INVIO
-// =========================
-async function sendVotes() {
-
-  if (isSubmitting) return;
-  isSubmitting = true;
-
-  try {
-
-    for (let v of votiSelezionati) {
-
-      const [percorso, scuola] = v.split("|");
-
+    try {
       const res = await fetch("/vote", {
         method: "POST",
-        headers: {"Content-Type":"application/json"},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, percorso, scuola })
       });
 
       const data = await res.json();
 
       if (!data.success) {
-        alert(data.error);
-        isSubmitting = false;
+        alert(data.error || "Errore durante il voto");
         return;
       }
+
+    } catch (err) {
+      alert("Errore di connessione al server");
+      return;
     }
-
-    alert("Voto registrato!");
-
-    document.querySelectorAll("input[name='choice']")
-      .forEach(c => c.checked = false);
-
-    votiSelezionati = [];
-    closeConfirm();
-
-  } catch (err) {
-    alert("Errore di connessione");
   }
 
-  isSubmitting = false;
-}
+  // =========================
+  // SUCCESSO
+  // =========================
+  alert("Voto registrato con successo!");
+
+  // reset checkbox
+  document.querySelectorAll("input[name='choice']")
+    .forEach(c => c.checked = false);
+});
 
 </script>
-
 </body>
 </html>
