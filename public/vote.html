@@ -48,7 +48,7 @@ h1 { color: #822433; }
 }
 
 .table-container {
-  background: #ffffffcc;
+  background: white;
   border-radius: 8px;
   padding: 10px;
 }
@@ -58,7 +58,7 @@ table { width: 100%; }
 td {
   padding: 8px;
   border-bottom: 1px solid #ddd;
-  color: #800000;
+  color: #222;
   font-weight: bold;
 }
 
@@ -78,10 +78,11 @@ button {
   position:fixed;
   top:0; left:0;
   width:100%; height:100%;
-  background:rgba(0,0,0,0.7);
+  background:rgba(0,0,0,0.4);
   justify-content:center;
   align-items:center;
   z-index:2000;
+  backdrop-filter: blur(3px);
 }
 
 #confirmInner {
@@ -125,6 +126,12 @@ button {
 <script>
 
 const percorsi = {
+
+  "Biologia Vegetale - Esperimento": [
+    { nome: "ITA G. Garibaldi Roma", titolo: "Filiera Mais No-OGM (PCR)" },
+    { nome: "ITA Garibaldi Roma + Liceo Righi Roma", titolo: "Tiny Forest e suolo" }
+  ],
+  
   "Fisica - Esperimento": [
     { nome: "Gaetano De Sanctis", titolo: "Sensori, Motori e Gravità" },
     { nome: "G. Lombardo Radice", titolo: "Ipnosi dei pendoli magici" },
@@ -142,9 +149,19 @@ const percorsi = {
     { nome: "Pertini Falcone", titolo: "Percorsi di chimica sperimentale" }
   ],
 
-  "Biologia Vegetale - Esperimento": [
-    { nome: "ITA G. Garibaldi Roma", titolo: "Filiera Mais No-OGM (PCR)" },
-    { nome: "ITA Garibaldi Roma + Liceo Righi Roma", titolo: "Tiny Forest e suolo" }
+  "Biologia Animale - Poster": [
+    { nome: "Livia Bottardi", titolo: "Cellule al microscopio" }
+  ],
+  
+  "Biologia Vegetale - Poster": [
+    { nome: "Augusto Righi Roma", titolo: "Tiny Forest metagenomica" },
+    { nome: "Augusto Righi Roma", titolo: "Analisi Tiny Forest" }
+  ],
+
+  "Chimica - Poster": [
+    { nome: "Cavour", titolo: "Pigmenti e acidità" },
+    { nome: "Evangelista Torricelli", titolo: "Chimica quotidiana" },
+    { nome: "IT Agrario Giuseppe Garibaldi", titolo: "Produzione metano (BMT)" }
   ],
 
   "Fisica - Poster": [
@@ -157,30 +174,28 @@ const percorsi = {
     { nome: "Vittoria Colonna", titolo: "Il pendolo nella storia" },
     { nome: "Flacco Potenza", titolo: "Biomeccanica leve" }
   ],
+  
+  "Musei Scientifici - Poster": [
+    { nome: "Massimiliano Massimo", titolo: "Museo scientifico" },
+    { nome: "Pertini Falcone", titolo: "Museo via Rugantino" }
+  ],
 
   "Scienze della Terra - Poster": [
     { nome: "Labriola", titolo: "Esperienza Lab2Go" },
     { nome: "Galileo Galilei Roma", titolo: "Rocce, minerali e paesaggi" }
   ],
 
-  "Chimica - Poster": [
-    { nome: "Cavour", titolo: "Pigmenti e acidità" },
-    { nome: "Evangelista Torricelli", titolo: "Chimica quotidiana" },
-    { nome: "IT Agrario Giuseppe Garibaldi", titolo: "Produzione metano (BMT)" }
-  ],
+  "Biologia Animale - Talk": [
+    { nome: "J.M. Keynes", titolo: "Dal procariote all’eucariote" },
+    { nome: "Socrate Roma", titolo: "Ricostruzione 3D" }
+  ]
+};
 
-  "Biologia Vegetale - Poster": [
-    { nome: "Augusto Righi Roma", titolo: "Tiny Forest metagenomica" },
-    { nome: "Augusto Righi Roma", titolo: "Analisi Tiny Forest" }
-  ],
-
-  "Biologia Animale - Poster": [
-    { nome: "Livia Bottardi", titolo: "Cellule al microscopio" }
-  ],
-
-  "Musei Scientifici - Poster": [
-    { nome: "Massimiliano Massimo", titolo: "Museo scientifico" },
-    { nome: "Pertini Falcone", titolo: "Museo via Rugantino" }
+  "Biologia Vegetale - Talk": [
+    { nome: "ITA Garibaldi Roma", titolo: "Tiny Forest avanzata" },
+    { nome: "J.V. Neumann", titolo: "Viroma piante urbane" },
+    { nome: "Tullio Levi Civita", titolo: "Laboratorio botanica" },
+    { nome: "Pertini Falcone", titolo: "Laboratori biologia vegetale" }
   ],
 
   "Fisica - Talk": [
@@ -193,19 +208,6 @@ const percorsi = {
     { nome: "Liceo Scientifico Cavour", titolo: "Pigmenti e acidità" },
     { nome: "Evangelista Torricelli", titolo: "Chimica quotidiana" }
   ],
-
-  "Biologia Vegetale - Talk": [
-    { nome: "ITA Garibaldi Roma", titolo: "Tiny Forest avanzata" },
-    { nome: "J.V. Neumann", titolo: "Viroma piante urbane" },
-    { nome: "Tullio Levi Civita", titolo: "Laboratorio botanica" },
-    { nome: "Pertini Falcone", titolo: "Laboratori biologia vegetale" }
-  ],
-
-  "Biologia Animale - Talk": [
-    { nome: "J.M. Keynes", titolo: "Dal procariote all’eucariote" },
-    { nome: "Socrate Roma", titolo: "Ricostruzione 3D" }
-  ]
-};
 
 const token = new URLSearchParams(window.location.search).get("token");
 
