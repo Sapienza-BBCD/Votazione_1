@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 3000;
 const BASE_URL =
   process.env.BASE_URL || "https://votazione-1.onrender.com";
 
-const PARTICIPANTI = 300;
+const PARTICIPANTI = 350;
 const MAX_VOTES = 2;
 const ADMIN_PASSWORD = "lab2go";
 
@@ -270,7 +270,10 @@ app.get("/download-qrs", async (req, res) => {
 // =========================
 app.get("/print-qrs", async (req, res) => {
 
-  const doc = new PDFDocument({ margin: 30 });
+  const doc = new PDFDocument({
+    size: "A4",
+    margin: 40
+  });
 
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", "inline; filename=qrcodes.pdf");
@@ -284,9 +287,16 @@ app.get("/print-qrs", async (req, res) => {
       return;
     }
 
-    const perRow = 3;
-    const size = 120;
-    const padding = 60;
+    // 🔹 CONFIG LAYOUT A4
+    const cols = 2;
+    const rowsPerPage = 4;
+
+    const qrSize = 180;
+    const spacingX = 60;
+    const spacingY = 60;
+
+    const startX = 70;
+    const startY = 60;
 
     let col = 0;
     let row = 0;
@@ -297,23 +307,56 @@ app.get("/print-qrs", async (req, res) => {
       const qr = await QRCode.toDataURL(url);
       const img = Buffer.from(qr.split(",")[1], "base64");
 
-      const x = 50 + col * (size + padding);
-      const y = 50 + row * (size + 70);
+      const x = startX + col * (qrSize + spacingX);
+      const y = startY + row * (qrSize + 80);
 
-      doc.image(img, x, y, { width: size });
+      // 🔹 QR
+      doc.image(img, x, y, { width: qrSize });
+
+      // 🔹 Etichetta sotto
       doc.fontSize(10);
-      doc.text(`QR ${i + 1}`, x, y + size + 5, {
-        width: size,
+      doc.text(`QR ${i + 1}`, x, y + qrSize + 5, {
+        width: qrSize,
         align: "center"
       });
 
+      // 🔹 CORNICE TAGLIO (tratteggiata)
+      doc
+        .rect(x - 8, y - 8, qrSize + 16, qrSize + 40)
+        .dash(4, { space: 4 })
+        .lineWidth(0.7)
+        .strokeColor("#888")
+        .stroke()
+        .undash();
+
+      // 🔹 SEGNI DI TAGLIO (croci agli angoli ✂️)
+      const mark = 8;
+
+      // alto sinistra
+      doc.moveTo(x - 12, y - 12).lineTo(x - 12 + mark, y - 12).stroke();
+      doc.moveTo(x - 12, y - 12).lineTo(x - 12, y - 12 + mark).stroke();
+
+      // alto destra
+      doc.moveTo(x + qrSize + 12, y - 12).lineTo(x + qrSize + 12 - mark, y - 12).stroke();
+      doc.moveTo(x + qrSize + 12, y - 12).lineTo(x + qrSize + 12, y - 12 + mark).stroke();
+
+      // basso sinistra
+      doc.moveTo(x - 12, y + qrSize + 32).lineTo(x - 12 + mark, y + qrSize + 32).stroke();
+      doc.moveTo(x - 12, y + qrSize + 32).lineTo(x - 12, y + qrSize + 32 - mark).stroke();
+
+      // basso destra
+      doc.moveTo(x + qrSize + 12, y + qrSize + 32).lineTo(x + qrSize + 12 - mark, y + qrSize + 32).stroke();
+      doc.moveTo(x + qrSize + 12, y + qrSize + 32).lineTo(x + qrSize + 12, y + qrSize + 32 - mark).stroke();
+
+      // 🔹 avanzamento griglia
       col++;
-      if (col === perRow) {
+
+      if (col === cols) {
         col = 0;
         row++;
       }
 
-      if (row === 4) {
+      if (row === rowsPerPage) {
         doc.addPage();
         row = 0;
       }
@@ -324,7 +367,6 @@ app.get("/print-qrs", async (req, res) => {
   });
 
 });
-
 // =========================
 // START
 // =========================
