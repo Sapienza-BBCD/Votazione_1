@@ -52,7 +52,18 @@ h1 { color: #822433; }
   border-radius: 8px;
   padding: 10px;
 }
+.scuola {
+  color: #822433;      /* bordeaux */
+  font-size: 19px;
+  font-weight: bold;
+}
 
+.titolo {
+  color: #822433;      /* bordeaux */
+  font-size: 17px;
+  font-style: italic;
+}
+     
 table { width: 100%; }
 
 td {
@@ -239,10 +250,10 @@ Object.keys(percorsi).forEach(percorso => {
     const tr = document.createElement("tr");
 
     tr.innerHTML = `
-      <td>${item.nome}</td>
-      <td>${item.titolo}</td>
+      <td class="scuola">${item.nome}</td>
+      <td class="titolo">${item.titolo}</td>
       <td><input type="checkbox" name="choice" value="${percorso}|${item.nome}"></td>
-    `;
+`   ;
 
     table.appendChild(tr);
   });
