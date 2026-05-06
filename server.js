@@ -288,18 +288,24 @@ app.get("/print-qrs", async (req, res) => {
     }
 
     // 🔹 CONFIG LAYOUT A4
-    const cols = 2;
-    const rowsPerPage = 4;
+  const cols = 2;
+  const rowsPerPage = 4;
 
-    const qrSize = 180;
-    const spacingX = 60;
-    const spacingY = 60;
+  const qrSize = 110;        // più piccolo ✔️
+  const labelHeight = 20;
+  const cellHeight = qrSize + labelHeight + 20;
 
-    const startX = 70;
-    const startY = 60;
+  const marginX = 50;
+  const marginY = 50;
 
-    let col = 0;
-    let row = 0;
+  const usableWidth = doc.page.width - marginX * 2;
+  const usableHeight = doc.page.height - marginY * 2;
+
+  const spacingX = (usableWidth - cols * qrSize) / (cols - 1);
+  const spacingY = (usableHeight - rowsPerPage * cellHeight) / (rowsPerPage - 1);
+
+  let col = 0;
+  let row = 0;
 
     for (let i = 0; i < rows.length; i++) {
 
@@ -307,14 +313,14 @@ app.get("/print-qrs", async (req, res) => {
       const qr = await QRCode.toDataURL(url);
       const img = Buffer.from(qr.split(",")[1], "base64");
 
-      const x = startX + col * (qrSize + spacingX);
-      const y = startY + row * (qrSize + 80);
+      const x = marginX + col * (qrSize + spacingX);
+      const y = marginY + row * (cellHeight + spacingY);
 
       // 🔹 QR
       doc.image(img, x, y, { width: qrSize });
 
       // 🔹 Etichetta sotto
-      doc.fontSize(10);
+      doc.fontSize(9);
       doc.text(`QR ${i + 1}`, x, y + qrSize + 5, {
         width: qrSize,
         align: "center"
@@ -322,10 +328,10 @@ app.get("/print-qrs", async (req, res) => {
 
       // 🔹 CORNICE TAGLIO (tratteggiata)
       doc
-        .rect(x - 8, y - 8, qrSize + 16, qrSize + 40)
-        .dash(4, { space: 4 })
-        .lineWidth(0.7)
-        .strokeColor("#888")
+        .rect(x - 5, y - 5, qrSize + 10, cellHeight)
+        .dash(2, { space: 2 })
+        .lineWidth(0.5)
+        .strokeColor("#aaa")
         .stroke()
         .undash();
 
@@ -341,12 +347,22 @@ app.get("/print-qrs", async (req, res) => {
       doc.moveTo(x + qrSize + 12, y - 12).lineTo(x + qrSize + 12, y - 12 + mark).stroke();
 
       // basso sinistra
-      doc.moveTo(x - 12, y + qrSize + 32).lineTo(x - 12 + mark, y + qrSize + 32).stroke();
-      doc.moveTo(x - 12, y + qrSize + 32).lineTo(x - 12, y + qrSize + 32 - mark).stroke();
+      doc.moveTo(x - 12, y + cellHeight - 8)
+      doc.lineTo(x - 12 + mark, y + cellHeight - 8)
+      .stroke();
+
+      doc.moveTo(x - 12, y + cellHeight - 8)
+      doc.lineTo(x - 12, y + cellHeight - 8 - mark)
+      .stroke();
 
       // basso destra
-      doc.moveTo(x + qrSize + 12, y + qrSize + 32).lineTo(x + qrSize + 12 - mark, y + qrSize + 32).stroke();
-      doc.moveTo(x + qrSize + 12, y + qrSize + 32).lineTo(x + qrSize + 12, y + qrSize + 32 - mark).stroke();
+      doc.moveTo(x + qrSize + 12, y + cellHeight - 8)
+      doc.lineTo(x + qrSize + 12 - mark, y + cellHeight - 8)
+      .stroke();
+
+      doc.moveTo(x + qrSize + 12, y + cellHeight - 8)
+      doc.lineTo(x + qrSize + 12, y + cellHeight - 8 - mark)
+      .stroke();
 
       // 🔹 avanzamento griglia
       col++;
@@ -356,7 +372,7 @@ app.get("/print-qrs", async (req, res) => {
         row++;
       }
 
-      if (row === rowsPerPage) {
+      if (row === rowsPerPage && i < rows.length - 1) {
         doc.addPage();
         row = 0;
       }
