@@ -288,15 +288,15 @@ app.get("/print-qrs", async (req, res) => {
     }
 
     // 🔹 CONFIG LAYOUT A4
-  const cols = 2;
+  const cols = 3;
   const rowsPerPage = 4;
 
-  const qrSize = 110;        // più piccolo ✔️
-  const labelHeight = 20;
-  const cellHeight = qrSize + labelHeight + 20;
+  const qrSize = 85;        // più piccolo ✔️
+  const labelHeight = 15;
+  const cellHeight = qrSize + labelHeight + 10;
 
-  const marginX = 50;
-  const marginY = 50;
+  const marginX = 40;
+  const marginY = 40;
 
   const usableWidth = doc.page.width - marginX * 2;
   const usableHeight = doc.page.height - marginY * 2;
