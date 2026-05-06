@@ -279,6 +279,20 @@ percorsi[percorso].forEach(item => {
     voteContainer.appendChild(div);
 });
 
+// =========================
+// BLOCCO MAX 2 SELEZIONI (FIX BUG)
+// =========================
+document.addEventListener("change", (e) => {
+  if (e.target.name === "choice") {
+
+    const checked = document.querySelectorAll("input[name='choice']:checked");
+
+    if (checked.length > MAX_VOTES) {
+      e.target.checked = false;
+      alert("Puoi selezionare massimo 2 progetti");
+    }
+  }
+});
 
 // =========================
 // FORM
@@ -322,10 +336,14 @@ form.addEventListener("submit", async (e) => {
 
   const uniche = new Set(discipline);
 
-  if (checked.length === 2 && uniche.size === 1) {
-    alert("Devi scegliere due discipline diverse (es. Fisica + Chimica)");
-    return;
-  }
+if (checked.length === 2 && uniche.size === 1) {
+  alert("Devi scegliere due discipline diverse (es. Fisica + Chimica)");
+
+  // 👉 rimuove automaticamente l'ultima selezione
+  checked[checked.length - 1].checked = false;
+
+  return;
+}
 
   // =========================
   // INVIO VOTI
