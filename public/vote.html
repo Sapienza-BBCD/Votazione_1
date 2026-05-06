@@ -212,9 +212,8 @@ const percorsi = {
 const token = new URLSearchParams(window.location.search).get("token");
 
 if (!token) {
-  document.body.innerHTML = "<h2>Token mancante</h2>";
-  throw new Error("Token mancante");
-}
+    console.warn("Token mancante (modalità test)");
+    }
 
 const MAX_VOTES = 2;
 let votiSelezionati = [];
@@ -263,6 +262,11 @@ container.appendChild(form);
 form.addEventListener("submit", (e) => {
   e.preventDefault();
 
+  if (!token) {
+    alert("Devi usare il QR code per votare");
+    return;
+  }
+
   const checked = document.querySelectorAll("input[name='choice']:checked");
 
   if (checked.length === 0) {
@@ -272,6 +276,15 @@ form.addEventListener("submit", (e) => {
 
   if (checked.length > MAX_VOTES) {
     alert("Massimo 2 voti");
+    return;
+  }
+
+  // ✅ controllo percorsi diversi
+  const percorsiSelezionati = Array.from(checked).map(c => c.value.split("|")[0]);
+  const unici = new Set(percorsiSelezionati);
+
+  if (checked.length === 2 && unici.size === 1) {
+    alert("Devi scegliere percorsi diversi");
     return;
   }
 
@@ -305,33 +318,38 @@ async function sendVotes() {
   if (isSubmitting) return;
   isSubmitting = true;
 
-  for (let v of votiSelezionati) {
+  try {
 
-    const [percorso, scuola] = v.split("|");
+    for (let v of votiSelezionati) {
 
-    const res = await fetch("/vote", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ token, percorso, scuola })
-    });
+      const [percorso, scuola] = v.split("|");
 
-    const data = await res.json();
+      const res = await fetch("/vote", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ token, percorso, scuola })
+      });
 
-    if (!data.success) {
-      alert(data.error);
-      isSubmitting = false;
-      return;
+      const data = await res.json();
+
+      if (!data.success) {
+        alert(data.error);
+        isSubmitting = false;
+        return;
+      }
     }
+
+    alert("Voto registrato!");
+
+    document.querySelectorAll("input[name='choice']")
+      .forEach(c => c.checked = false);
+
+    votiSelezionati = [];
+    closeConfirm();
+
+  } catch (err) {
+    alert("Errore di connessione");
   }
-
-  alert("Voto registrato!");
-
-  // reset UI
-  document.querySelectorAll("input[name='choice']")
-    .forEach(c => c.checked = false);
-
-  votiSelezionati = [];
-  closeConfirm();
 
   isSubmitting = false;
 }
