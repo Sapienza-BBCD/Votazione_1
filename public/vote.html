@@ -75,6 +75,27 @@ h1 { color: #822433; }
   font-size: 17px;
   font-style: italic;
 }
+
+#statusMessage {
+  margin: 20px auto;
+  padding: 15px;
+  max-width: 700px;
+  border-radius: 10px;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.warning {
+  background: #fff3cd;
+  color: #856404;
+  border: 2px solid #ffeaa7;
+}
+
+.success {
+  background: #d4edda;
+  color: #155724;
+  border: 2px solid #a5d6a7;
+}
      
 table { width: 100%; }
 
@@ -115,7 +136,7 @@ button:hover {
   justify-content:center;
   align-items:center;
   z-index:2000;
-  backdrop-filter: blur(3px);
+  
 }
 .table-container {
   background: white;
@@ -142,6 +163,8 @@ button:hover {
 
 <div class="container">
 <h1>Vota il progetto preferito - LAB2GO. Vota fino a 2 progetti (percorsi diversi)</h1>
+<div id="statusMessage"></div>
+
 <div id="voteContainer"></div>
 </div>
 
@@ -254,10 +277,8 @@ const percorsi = {
 const urlParams = new URLSearchParams(window.location.search);
 const token = urlParams.get("token");
 
-if (!token) {
-  document.body.innerHTML = "<h2>Accesso non valido: usa il QR code</h2>";
-  throw new Error("Token mancante");
-}
+const validToken = !!token;
+
 
 // =========================
 // CONFIG
@@ -317,9 +338,37 @@ document.addEventListener("change", (e) => {
 // FORM
 // =========================
 const form = document.createElement("form");
+form.style.marginTop = "20px";
 
-form.innerHTML = `<button type="submit">✅ Invia voto</button>`;
-form.style.marginTop = "30px";
+const submitBtn = document.createElement("button");
+submitBtn.type = "submit";
+submitBtn.innerText = "Invia voto";
+
+form.appendChild(submitBtn);
+
+// 👇 AGGIUNGI QUI
+const statusMessage = document.getElementById("statusMessage");
+
+if (!validToken) {
+
+  statusMessage.className = "warning";
+
+  statusMessage.innerHTML = `
+    ⚠️ Per votare devi utilizzare un QR code valido.
+  `;
+
+  submitBtn.disabled = true;
+  submitBtn.style.opacity = "0.5";
+  submitBtn.style.cursor = "not-allowed";
+
+} else {
+
+  statusMessage.className = "success";
+
+  statusMessage.innerHTML = `
+    ✅ QR code valido. Puoi votare.
+  `;
+}
 
 // IMPORTANTISSIMO: mettilo fuori dalle card, non dentro voteContainer
 document.querySelector(".container").appendChild(form);
