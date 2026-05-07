@@ -40,13 +40,13 @@ header {
 
 .scuola {
   color: #822433;      /* bordeaux */
-  font-size: 19px;
+  font-size: 20px;
   font-weight: bold;
 }
 
 .titolo {
   color: #822433;      /* bordeaux */
-  font-size: 17px;
+  font-size: 18px;
   font-style: italic;
 }
 
@@ -271,7 +271,9 @@ function getDisciplina(percorso) {
 const voteContainer = document.getElementById("voteContainer");
 Object.keys(percorsi).sort().forEach(percorso => {
     const div = document.createElement("div");
-    div.className = "percorso"; div.style.background = "#475569"; // grigio bluastro
+    div.className = "percorso";
+    div.style.background = "#f8fafc";
+    div.style.color = "#111";
     const h2 = document.createElement("h2");
     h2.innerText = percorso; div.appendChild(h2);
     const table = document.createElement("table");
