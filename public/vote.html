@@ -314,7 +314,7 @@ percorsi[percorso].forEach(item => {
     tr.innerHTML = `
       <td class="scuola">${item.nome}</td>
       <td class="titolo">${item.titolo}</td>
-      <td><input type="checkbox" name="choice" value="${percorso}|${item.nome}"></td>
+      <td><input type="checkbox" name="choice" value="${percorso}|${item.nome}|${item.titolo}"></td>
 `   ;
 
   table.appendChild(tr);
@@ -405,7 +405,7 @@ form.addEventListener("submit", (e) => {
 
   if (checked.length === 2 && uniche.size === 1) {
     alert("Devi scegliere due discipline diverse");
-    checked[checked.length - 1].checked = false;
+    
     return;
   }
 
@@ -418,14 +418,14 @@ function openConfirm(checked) {
 
   confirmText.innerHTML = "";
 
-  checked.forEach(c => {
-    const [percorso, scuola] = c.value.split("|");
+    checked.forEach(c => {
+      const [percorso, scuola, titolo] = c.value.split("|");
 
-    const p = document.createElement("p");
-    p.innerText = `${percorso} → ${scuola}`;
-    confirmText.appendChild(p);
-  });
+      const p = document.createElement("p");
+      p.innerText = `${percorso} → ${scuola} → ${titolo}`;
 
+      confirmText.appendChild(p);
+});
   confirmBox.style.display = "flex";
 }
 
@@ -438,13 +438,18 @@ async function sendVotes() {
 
   for (let scelta of checked) {
 
-    const [percorso, scuola] = scelta.value.split("|");
+    const [percorso, scuola, titolo] = scelta.value.split("|");
 
     try {
       const res = await fetch("/vote", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, percorso, scuola })
+        body: JSON.stringify({
+        token,
+        percorso,
+        scuola,
+        titolo
+    })
       });
 
       const data = await res.json();
