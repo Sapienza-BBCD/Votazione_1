@@ -380,14 +380,16 @@ app.get("/print-qrs", async (req, res) => {
       if (row === rowsPerPage && i < rows.length - 1) {
         doc.addPage();
         row = 0;
-      }
-    }
+          }
+        }
 
-    doc.end();
+        doc.end();
 
-  });
+      });
 
-});
+    });
+
+
 // =========================
 // START
 // =========================
