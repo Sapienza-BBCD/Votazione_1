@@ -1,7 +1,7 @@
 const express = require("express");
 const sqlite3 = require("sqlite3").verbose();
 const cors = require("cors");
-const { v4: uuidv4 } = require("uuid");
+// const { v4: uuidv4 } = require("uuid");
 const path = require("path");
 const QRCode = require("qrcode");
 const PDFDocument = require("pdfkit");
@@ -67,20 +67,25 @@ db.serialize(() => {
     }
   });
 
-  // genera token solo una volta
-  db.get("SELECT COUNT(*) AS count FROM tokens", (err, row) => {
-    if (row && row.count === 0) {
-      const stmt = db.prepare("INSERT INTO tokens(token) VALUES(?)");
-      for (let i = 0; i < PARTICIPANTI; i++) {
-        stmt.run(uuidv4());
+    // genera token permanenti
+    db.get("SELECT COUNT(*) AS count FROM tokens", (err, row) => {
+
+      if (row && row.count === 0) {
+
+        const stmt = db.prepare("INSERT INTO tokens(token) VALUES(?)");
+
+        for (let i = 1; i <= PARTICIPANTI; i++) {
+
+          // TOKEN FISSO
+          stmt.run(`LAB2GO-${i}`);
+
+        }
+
+        stmt.finalize();
+
+        console.log("Token permanenti generati:", PARTICIPANTI);
       }
-      stmt.finalize();
-      console.log("Token generati:", PARTICIPANTI);
-    }
-  });
-
-});
-
+    });
 // =========================
 // HELPERS STATO
 // =========================
