@@ -1,7 +1,6 @@
 const express = require("express");
 const sqlite3 = require("sqlite3").verbose();
 const cors = require("cors");
-// const { v4: uuidv4 } = require("uuid");
 const path = require("path");
 const QRCode = require("qrcode");
 const PDFDocument = require("pdfkit");
@@ -13,9 +12,7 @@ const PORT = process.env.PORT || 3000;
 // =========================
 // CONFIG
 // =========================
-const BASE_URL =
-  process.env.BASE_URL || "https://votazione-1.onrender.com";
-
+const BASE_URL = process.env.BASE_URL || "https://votazione-1.onrender.com";
 const PARTICIPANTI = 350;
 const MAX_VOTES = 2;
 const ADMIN_PASSWORD = "lab2go";
@@ -60,37 +57,42 @@ db.serialize(() => {
     )
   `);
 
-  // stato iniziale persistente
+  // stato iniziale
   db.get("SELECT value FROM settings WHERE key='stato'", (err, row) => {
+    if (err) return console.error(err);
+
     if (!row) {
       db.run("INSERT INTO settings(key,value) VALUES('stato','pre')");
     }
   });
 
-    // genera token permanenti
-    db.get("SELECT COUNT(*) AS count FROM tokens", (err, row) => {
+  // genera token
+  db.get("SELECT COUNT(*) AS count FROM tokens", (err, row) => {
+    if (err) return console.error(err);
 
-      if (row && row.count === 0) {
+    if (row && row.count === 0) {
+      const stmt = db.prepare("INSERT INTO tokens(token) VALUES(?)");
 
-        const stmt = db.prepare("INSERT INTO tokens(token) VALUES(?)");
-
-        for (let i = 1; i <= PARTICIPANTI; i++) {
-
-          // TOKEN FISSO
-          stmt.run(`LAB2GO-${i}`);
-
-        }
-
-        stmt.finalize();
-
-        console.log("Token permanenti generati:", PARTICIPANTI);
+      for (let i = 1; i <= PARTICIPANTI; i++) {
+        stmt.run(`LAB2GO-${i}`);
       }
-    });
+
+      stmt.finalize();
+      console.log("Token generati:", PARTICIPANTI);
+    }
+  });
+
+}); // ✅ CHIUSURA CORRETTA db.serialize()
+
 // =========================
 // HELPERS STATO
 // =========================
 function getStato(cb) {
   db.get("SELECT value FROM settings WHERE key='stato'", (err, row) => {
+    if (err) {
+      console.error(err);
+      return cb("pre");
+    }
     cb(row ? row.value : "pre");
   });
 }
@@ -99,7 +101,10 @@ function setStato(val, cb) {
   db.run(
     "UPDATE settings SET value=? WHERE key='stato'",
     [val],
-    cb
+    (err) => {
+      if (err) console.error(err);
+      if (cb) cb();
+    }
   );
 }
 
@@ -135,15 +140,15 @@ app.post("/admin-login", (req, res) => {
 // STATO VOTAZIONE
 // =========================
 app.get("/open-vote", (req, res) => {
-  setStato("open", () => res.json({ ok: true, stato: "open" }));
+  setStato("open", () => res.json({ ok: true }));
 });
 
 app.get("/close-vote", (req, res) => {
-  setStato("closed", () => res.json({ ok: true, stato: "closed" }));
+  setStato("closed", () => res.json({ ok: true }));
 });
 
 app.get("/reset-vote", (req, res) => {
-  setStato("pre", () => res.json({ ok: true, stato: "pre" }));
+  setStato("pre", () => res.json({ ok: true }));
 });
 
 // =========================
@@ -151,71 +156,69 @@ app.get("/reset-vote", (req, res) => {
 // =========================
 app.get("/reset-votes", (req, res) => {
   db.run("DELETE FROM votes", function (err) {
-
     if (err) {
       console.error(err);
       return res.json({ error: "Errore reset voti" });
     }
-
-    console.log("Voti cancellati:", this.changes);
 
     res.json({ ok: true, deleted: this.changes });
   });
 });
 
 // =========================
-// VOTO
+// VOTO (FIX LOGICO)
 // =========================
 app.post("/vote", (req, res) => {
-
   const { token, percorso, scuola } = req.body;
 
   getStato((stato) => {
 
-    if (stato === "pre")
-      return res.json({ error: "Votazione non aperta" });
+    if (stato === "pre") return res.json({ error: "Votazione non aperta" });
+    if (stato === "closed") return res.json({ error: "Votazione chiusa" });
 
-    if (stato === "closed")
-      return res.json({ error: "Votazione chiusa" });
-
-    db.get(
-      "SELECT * FROM tokens WHERE token=?",
-      [token],
-      (err, row) => {
-
-        if (!row)
-          return res.json({ error: "Token non valido" });
-
-        db.get(
-          "SELECT COUNT(*) as count FROM votes WHERE token=?",
-          [token],
-          (err, result) => {
-
-            if (result.count >= MAX_VOTES) {
-              return res.json({ error: "Limite voti raggiunto" });
-            }
-
-            db.run(
-              "INSERT INTO votes(token,percorso,scuola) VALUES(?,?,?)",
-              [token, percorso, scuola],
-              () => res.json({ success: true })
-            );
-
-          }
-        );
-
+    db.get("SELECT token FROM tokens WHERE token=?", [token], (err, row) => {
+      if (err) {
+        console.error(err);
+        return res.json({ error: "Errore server" });
       }
-    );
 
+      if (!row) return res.json({ error: "Token non valido" });
+
+      db.get(
+        "SELECT COUNT(*) as count FROM votes WHERE token=?",
+        [token],
+        (err2, result) => {
+          if (err2) {
+            console.error(err2);
+            return res.json({ error: "Errore server" });
+          }
+
+          if (result.count >= MAX_VOTES) {
+            return res.json({ error: "Limite voti raggiunto" });
+          }
+
+          db.run(
+            "INSERT INTO votes(token,percorso,scuola) VALUES(?,?,?)",
+            [token, percorso, scuola],
+            (err3) => {
+              if (err3) {
+                console.error(err3);
+                return res.json({ error: "Errore inserimento voto" });
+              }
+
+              res.json({ success: true });
+            }
+          );
+        }
+      );
+    });
   });
-
 });
 
 // =========================
 // RISULTATI
 // =========================
 app.get("/results-data", (req, res) => {
-
   db.all(`
     SELECT percorso, scuola, COUNT(*) as votes
     FROM votes
@@ -223,17 +226,23 @@ app.get("/results-data", (req, res) => {
     ORDER BY percorso, votes DESC
   `, (err, rows) => {
 
+    if (err) {
+      console.error(err);
+      return res.json({ error: "Errore risultati" });
+    }
+
     db.get("SELECT COUNT(*) as totale FROM votes", (err2, tot) => {
+      if (err2) {
+        console.error(err2);
+        return res.json({ error: "Errore conteggio" });
+      }
 
       res.json({
         totale: tot?.totale || 0,
         risultati: rows || []
       });
-
     });
-
   });
-
 });
 
 // =========================
@@ -241,14 +250,18 @@ app.get("/results-data", (req, res) => {
 // =========================
 app.get("/tokens", (req, res) => {
   db.all("SELECT token FROM tokens", (err, rows) => {
-    res.json(rows || []);
+    if (err) {
+      console.error(err);
+      return res.json([]);
+    }
+    res.json(rows);
   });
 });
 
 // =========================
 // DOWNLOAD QR ZIP
 // =========================
-app.get("/download-qrs", async (req, res) => {
+app.get("/download-qrs", (req, res) => {
 
   res.attachment("qrcodes.zip");
 
@@ -256,8 +269,10 @@ app.get("/download-qrs", async (req, res) => {
   archive.pipe(res);
 
   db.all("SELECT token FROM tokens", async (err, rows) => {
-
-    if (!rows) return archive.finalize();
+    if (err || !rows) {
+      console.error(err);
+      return archive.finalize();
+    }
 
     for (let i = 0; i < rows.length; i++) {
       const url = `${BASE_URL}/?token=${rows[i].token}`;
@@ -267,18 +282,14 @@ app.get("/download-qrs", async (req, res) => {
 
     archive.finalize();
   });
-
 });
 
 // =========================
 // PDF QR
 // =========================
-app.get("/print-qrs", async (req, res) => {
+app.get("/print-qrs", (req, res) => {
 
-  const doc = new PDFDocument({
-    size: "A4",
-    margin: 40
-  });
+  const doc = new PDFDocument({ size: "A4", margin: 40 });
 
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", "inline; filename=qrcodes.pdf");
@@ -287,12 +298,12 @@ app.get("/print-qrs", async (req, res) => {
 
   db.all("SELECT token FROM tokens", async (err, rows) => {
 
-    if (!rows) {
+    if (err || !rows) {
+      console.error(err);
       doc.end();
       return;
     }
 
-    // CONFIG
     const cols = 3;
     const rowsPerPage = 4;
 
@@ -306,98 +317,30 @@ app.get("/print-qrs", async (req, res) => {
     const usableWidth = doc.page.width - marginX * 2;
     const usableHeight = doc.page.height - marginY * 2;
 
-    const spacingX =
-      (usableWidth - cols * qrSize) / (cols - 1);
-
-    const spacingY =
-      (usableHeight - rowsPerPage * cellHeight) /
-      (rowsPerPage - 1);
+    const spacingX = (usableWidth - cols * qrSize) / (cols - 1);
+    const spacingY = (usableHeight - rowsPerPage * cellHeight) / (rowsPerPage - 1);
 
     let col = 0;
     let row = 0;
 
     for (let i = 0; i < rows.length; i++) {
 
-      const url =
-        `${BASE_URL}/?token=${rows[i].token}`;
-
+      const url = `${BASE_URL}/?token=${rows[i].token}`;
       const qr = await QRCode.toDataURL(url);
 
-      const img = Buffer.from(
-        qr.split(",")[1],
-        "base64"
-      );
+      const img = Buffer.from(qr.split(",")[1], "base64");
 
-      const x =
-        marginX + col * (qrSize + spacingX);
+      const x = marginX + col * (qrSize + spacingX);
+      const y = marginY + row * (cellHeight + spacingY);
 
-      const y =
-        marginY + row * (cellHeight + spacingY);
+      doc.image(img, x, y, { width: qrSize });
 
-      // QR
-      doc.image(img, x, y, {
-        width: qrSize
-      });
-
-      // LABEL
-      doc.fontSize(9);
-
-      doc.text(`QR ${i + 1}`, x, y + qrSize + 5, {
+      doc.fontSize(9).text(`QR ${i + 1}`, x, y + qrSize + 5, {
         width: qrSize,
         align: "center"
       });
 
-      // CORNICE
-      doc
-        .rect(x - 5, y - 5, qrSize + 10, cellHeight)
-        .dash(2, { space: 2 })
-        .lineWidth(0.5)
-        .strokeColor("#aaa")
-        .stroke()
-        .undash();
-
-      // SEGNI TAGLIO
-      const mark = 8;
-
-      // alto sx
-      doc.moveTo(x - 12, y - 12)
-        .lineTo(x - 12 + mark, y - 12)
-        .stroke();
-
-      doc.moveTo(x - 12, y - 12)
-        .lineTo(x - 12, y - 12 + mark)
-        .stroke();
-
-      // alto dx
-      doc.moveTo(x + qrSize + 12, y - 12)
-        .lineTo(x + qrSize + 12 - mark, y - 12)
-        .stroke();
-
-      doc.moveTo(x + qrSize + 12, y - 12)
-        .lineTo(x + qrSize + 12, y - 12 + mark)
-        .stroke();
-
-      // basso sx
-      doc.moveTo(x - 12, y + cellHeight - 8)
-        .lineTo(x - 12 + mark, y + cellHeight - 8)
-        .stroke();
-
-      doc.moveTo(x - 12, y + cellHeight - 8)
-        .lineTo(x - 12, y + cellHeight - 8 - mark)
-        .stroke();
-
-      // basso dx
-      doc.moveTo(x + qrSize + 12, y + cellHeight - 8)
-        .lineTo(x + qrSize + 12 - mark, y + cellHeight - 8)
-        .stroke();
-
-      doc.moveTo(x + qrSize + 12, y + cellHeight - 8)
-        .lineTo(x + qrSize + 12, y + cellHeight - 8 - mark)
-        .stroke();
-
-      // avanzamento
       col++;
-
       if (col === cols) {
         col = 0;
         row++;
@@ -407,15 +350,12 @@ app.get("/print-qrs", async (req, res) => {
         doc.addPage();
         row = 0;
       }
-
     }
 
     doc.end();
-
   });
-
 });
-  
+
 // =========================
 // START
 // =========================
