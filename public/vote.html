@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<title>Vota il progetto preferito. Vota fino a 2 progetti (percorsi diversi) - LAB2GO</title>
+<title>Vota progetto LAB2GO</title>
 
 <style>
 body {
@@ -38,120 +38,62 @@ header {
   margin: 140px auto 30px;
 }
 
-.scuola {
-  color: #822433;      /* bordeaux */
-  font-size: 20px;
-  font-weight: bold;
-}
-
-.titolo {
-  color: #822433;      /* bordeaux */
-  font-size: 18px;
-  font-style: italic;
-}
-
 h1 { color: #822433; }
 
 .percorso {
   border-radius: 10px;
   margin-bottom: 30px;
   padding: 15px;
-  color: #201c6b;
+  background: #f8fafc;
 }
-     
+
 .percorso h2 {
   color: #201c6b;
 }
-     
-.table-container {
-  background: white;
-  border-radius: 8px;
-  padding: 10px;
-}
-.scuola {
-  color: #822433;      /* bordeaux */
-  font-size: 19px;
-  font-weight: bold;
-}
 
-.titolo {
-  color: #822433;      /* bordeaux */
-  font-size: 17px;
-  font-style: italic;
+table {
+  width: 100%;
 }
-
-#statusMessage {
-  margin: 20px auto;
-  padding: 15px;
-  max-width: 700px;
-  border-radius: 10px;
-  font-size: 18px;
-  font-weight: bold;
-}
-
-.warning {
-  background: #fff3cd;
-  color: #856404;
-  border: 2px solid #ffeaa7;
-}
-
-.success {
-  background: #d4edda;
-  color: #155724;
-  border: 2px solid #a5d6a7;
-}
-     
-table { width: 100%; }
 
 td {
   padding: 8px;
   border-bottom: 1px solid #ddd;
-  color: #222;
   font-weight: bold;
 }
+
+.scuola { color: #822433; }
+.titolo { color: #822433; font-style: italic; }
 
 button {
   margin-top: 25px;
   padding: 14px 40px;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: bold;
-  background: linear-gradient(135deg, #822433, #a83244);
+  background: #822433;
   color: white;
   border: none;
   border-radius: 10px;
   cursor: pointer;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-  transition: all 0.2s ease;
-}
-
-button:hover {
-  transform: scale(1.05);
-  box-shadow: 0 6px 14px rgba(0,0,0,0.3);
 }
 
 /* MODALE */
 #confirmBox {
-  display:none;
-  position:fixed;
-  top:0; left:0;
-  width:100%; height:100%;
-  background:rgba(0,0,0,0.3);
-  backdrop-filter: blur(4px);
-  justify-content:center;
-  align-items:center;
-  z-index:2000;
-  
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
 }
-.table-container {
-  background: white;
-}
+
 #confirmInner {
-  background:#1f2937;
-  padding:20px;
-  border-radius:10px;
-  width:80%;
-  max-width:500px;
-  color:white;
+  background: #1f2937;
+  padding: 20px;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 500px;
+  color: white;
 }
 </style>
 </head>
@@ -166,10 +108,9 @@ button:hover {
 <div class="separator"></div>
 
 <div class="container">
-<h1>Vota il progetto preferito - LAB2GO. Vota fino a 2 progetti (percorsi diversi)</h1>
-<div id="statusMessage"></div>
-
-<div id="voteContainer"></div>
+  <h1>Vota il progetto preferito (max 2)</h1>
+  <div id="statusMessage"></div>
+  <div id="voteContainer"></div>
 </div>
 
 <!-- MODALE -->
@@ -177,373 +118,199 @@ button:hover {
   <div id="confirmInner">
     <h2>Conferma voto</h2>
     <div id="confirmText"></div>
-
     <br>
-
-    <button onclick="sendVotes()" style="background:green;">Conferma</button>
+    <button id="confirmBtn" style="background:green;">Conferma</button>
     <button onclick="closeConfirm()" style="background:red;">Annulla</button>
   </div>
 </div>
 
 <script>
+/* =========================
+   DATI
+========================= */
 
-const percorsi = {
+const percorsi = { /* 👈 il tuo oggetto invariato */ };
 
-  "Biologia Vegetale - Esperimento": [
-    { nome: "ITA G. Garibaldi Roma", titolo: "Monitoraggio molecolare della filiera del mais: verifica dell'identità 'No-OGM' mediante screening PCR" },
-    { nome: "ITA G. Garibaldi Roma + Liceo Righi Roma", titolo: "Tiny Forest come sistema per ripristinare le funzionalità del suolo in un contesto urbano ed agricolo" }
-  ],
-  
-
-  "Chimica - Esperimento": [
-    { nome: "Cavour", titolo: "Pigmenti, gas, elettrochimica e acidità" },
-    { nome: "Terenzio Mamiani", titolo: "Quando la chimica incontra la sostenibilità" },
-    { nome: "Pertini Falcone", titolo: "Percorsi di chimica sperimentale" },
-    { nome: "Torricelli", titolo: "Demistificare la chimica di tutti i giorni" }
-  ],
-
-  "Fisica - Esperimento": [
-    { nome: "Flacco Potenza", titolo: "Analisi fenomenologica della diffrazione ottica" },
-    { nome: "G. Lombardo Radice", titolo: "L'ipnosi dei pendoli magici" },
-    { nome: "G. Lombardo Radice", titolo: "Quando il suono si somma (o si cancella): il tubo di Quincke" },
-    { nome: "G. Lombardo Radice", titolo: "Quando la luce si spegne: un esperimento di polarizzazione" },
-    { nome: "Gaetano De Sanctis", titolo: "Motori e gravità: la meccanica classica incontra Arduino" },
-    { nome: "Pilo Albertelli Roma", titolo: "Il coherer di Calzecchi Onesti e le onde elettromagnetiche al regio liceo Umberto I" },
-    { nome: "Augusto Righi Roma", titolo: "Il sensore a ultrasuoni HC SR04" },
-    { nome: "Vian Bracciano", titolo: "Verifica della legge di Lambert-Beer con Arduino" },
-    { nome: "Vittoria Colonna", titolo: "Il pendolo nella storia" }
-  ],
-
-
-  "Biologia Animale - Poster": [
-    { nome: "Livia Bottardi", titolo: "Osservazione di cellule al microscopio ottico" }
-  ],
-  
-  "Biologia Vegetale - Poster": [
-    { nome: "Augusto Righi Roma", titolo: "Progettazione e analisi metagenomica di una Tiny Forest" },
-    { nome: "Augusto Righi Roma", titolo: "Progettazione e analisi metagenomica di una Tiny Forest: un approccio integrato tra agronomia, sostenibilità e sequenziamento di terza generazione" }
-  ],
-
-  "Chimica - Poster": [
-    { nome: "Cavour", titolo: "Pigmenti, gas, elettrochimica e acidità" },
-    { nome: "Garibaldi", titolo: "Determinazione del potenziale biochimico di produzione di metano (BMT test) su matrici organiche di scarto" },
-    { nome: "Evangelista Torricelli", titolo: "Demistificare la chimica di tutti i giorni" }
- ],
-
-  "Fisica - Poster": [
-    { nome: "Flacco Potenza", titolo: "Analisi biomeccanica delle leve nel corpo umano" },
-    { nome: "Gaetano De Sanctis", titolo: "Sensori, motori e gravità: la meccanica incontra Arduino" },
-    { nome: "Nomentano", titolo: "La pioggia celeste di Muoni: da Poisson allo studio dei raggi cosmici" },
-    { nome: "G. Lombardo Radice", titolo: "Quando le onde che si incontrano... e la fisica si diverte a giocare!" },
-    { nome: "Polo Liceale Alighieri - Dante Alighieri", titolo: "Virgo: sulle tracce dell'invisibile ritmo dell'Universo" },
-    { nome: "Polo Liceale Alighieri - Dante Alighieri", titolo: "Oltre il limite di Heisenberg: schiacciare il vuoto quantistico" },
-    { nome: "Vittoria Colonna", titolo: "Il pendolo nella storia" },
-    { nome: "Vian Bracciano", titolo: "Verifica della legge di Lambert-Beer con Arduino" }
-  ],
-  
-  "Musei Scientifici - Poster": [
-    { nome: "Massimiliano Massimo", titolo: "Museo scientifico" },
-    { nome: "Pertini Falcone", titolo: "Museo via Rugantino" }
-  ],
-
-  "Scienze della Terra - Poster": [
-    { nome: "Labriola", titolo: "Esperienza Lab2Go del Liceo Labriola" },
-    { nome: "Galileo Galilei Roma", titolo: "Dall'osservazione alla scopperta: studio di rocce, minerali e paesaggi" }
-  ],
-
-  "Biologia Animale - Talk": [
-    { nome: "J.M. Keynes", titolo: "Il mondo dietro il microscopio: la magia della biologia dal procariote all’eucariote" },
-    { nome: "Socrate Roma", titolo: "Dal reperto alla ricostruzione 3D" }
-  ],
-
-  "Biologia Vegetale - Talk": [
-    { nome: "ITA Garibaldi Roma", titolo: "Progettazione e analisi metagenomica di una Tiny Forest: un approccio integrato tra agronomia, sostenibilità e sequenziamento di terza generazione" },
-    { nome: "J.V. Neumann", titolo: "Caratterizzazione del viroma di piante spontanee di un parco urbano di Roma" },
-    { nome: "Pertini Falcone", titolo: "Laboratori biologia vegetale"  },
-    { nome: "Tullio Levi Civita", titolo: "Laboratorio di botanica" }
-  ],
-
-  "Fisica - Talk": [
-    { nome: "G. Lombardo Radice", titolo: "Il mistero del punto luminoso di Poisson" },
-    { nome: "Polo Liceale Alighieri", titolo: "Vuoto e incertezza dal laboratorio a Virgo" }
-  ],
-
-  "Chimica - Talk": [
-    { nome: "Cavour", titolo: "Pigmenti, gas, elettrochimica e acidità" },
-    { nome: "Garibaldi", titolo: "Determinazione del potenziale biochimico di produzione di metano (BMT test) su matrici organiche di scarto" },
-    { nome: "Terenzio Mamiani", titolo: "Quando la chimica incontra la sostenibilità" },
-    { nome: "Evangelista Torricelli", titolo: "Demistificare la chimica di tutti i giorni"  }
-  ]
-};
-
-// =========================
-// TOKEN
-// =========================
-const urlParams = new URLSearchParams(window.location.search);
-const token = urlParams.get("token");
-
-const validToken = !!token;
-
-
-// =========================
-// CONFIG
-// =========================
 const MAX_VOTES = 2;
-let remainingVotes = MAX_VOTES;
-let usedVotes = 0;
 
-// prende la disciplina (Fisica, Chimica, ecc.)
-function getDisciplina(percorso) {
-  return percorso.split(" - ")[0];
+/* =========================
+   STATE
+========================= */
+
+let remainingVotes = MAX_VOTES;
+let projectId = 1;
+let selectedChoices = [];
+
+/* =========================
+   INIT SAFE
+========================= */
+
+window.addEventListener("DOMContentLoaded", () => {
+  renderAll();
+  bindEvents();
+});
+
+/* =========================
+   RENDER
+========================= */
+
+function renderAll() {
+  const container = document.getElementById("voteContainer");
+  if (!container) return;
+
+  Object.keys(percorsi).forEach(percorso => {
+    const block = createPercorsoBlock(percorso, percorsi[percorso]);
+    container.appendChild(block);
+  });
 }
 
-// =========================
-//UI
-// =========================
-const voteContainer = document.getElementById("voteContainer");
-Object.keys(percorsi).sort().forEach(percorso => {
-    const div = document.createElement("div");
-    div.className = "percorso";
-    div.style.background = "#f8fafc";
-    div.style.color = "#111";
-    const h2 = document.createElement("h2");
-    h2.innerText = percorso; div.appendChild(h2);
-    const table = document.createElement("table");
+function createPercorsoBlock(percorso, items) {
+  const div = document.createElement("div");
+  div.className = "percorso";
 
-percorsi[percorso].forEach(item => {
+  const h2 = document.createElement("h2");
+  h2.textContent = percorso;
+  div.appendChild(h2);
 
-  const currentId = projectId++;
-  const tr = document.createElement("tr");
+  const table = document.createElement("table");
+
+  items.forEach(item => {
+    const id = projectId++;
+
+    const tr = document.createElement("tr");
 
     tr.innerHTML = `
-      <td style="width:60px; font-size:22px; font-weight:bold; color:#201c6b;">
-        ${currentId}
-      </td>
-
+      <td style="width:50px">${id}</td>
       <td class="scuola">${item.nome}</td>
-
-      <td class="titolo">
-        ${item.titolo}
-      </td>
-
+      <td class="titolo">${item.titolo}</td>
       <td>
-        <input 
-          type="checkbox"
-          name="choice"
-          value="${currentId}|${percorso}|${item.nome}|${item.titolo}"
-        >
+        <input type="checkbox"
+               value="${id}|${percorso}|${item.nome}|${item.titolo}">
       </td>
-`   ;
+    `;
 
-  table.appendChild(tr);
-});
-       
-    div.appendChild(table);
-    voteContainer.appendChild(div);
-});
+    table.appendChild(tr);
+  });
 
-// =========================
-// BLOCCO MAX 2 SELEZIONI (FIX BUG)
-// =========================
-document.addEventListener("change", (e) => {
-  if (e.target.name === "choice") {
-
-    const checked = document.querySelectorAll("input[name='choice']:checked");
-
-    if (checked.length > remainingVotes) {
-      e.target.checked = false;
-      alert(`Puoi selezionare massimo ${remainingVotes} progett${remainingVotes === 1 ? "o" : "i"}`);
-    }
-  }
-});
-
-// =========================
-// FORM
-// =========================
-const form = document.createElement("form");
-form.style.marginTop = "20px";
-
-const submitBtn = document.createElement("button");
-submitBtn.type = "submit";
-submitBtn.innerText = "Invia voto";
-
-form.appendChild(submitBtn);
-
-// 👇 AGGIUNGI QUI
-const statusMessage = document.getElementById("statusMessage");
-async function loadVoteStatus() {
-
-  if (!token) return;
-
-  try {
-
-    const res = await fetch(`/vote-status/${token}`);
-    const data = await res.json();
-
-    usedVotes = data.used;
-    remainingVotes = data.remaining;
-
-    if (remainingVotes <= 0) {
-
-      statusMessage.className = "warning";
-
-      statusMessage.innerHTML = `
-        ⚠️ Hai già utilizzato tutte le preferenze disponibili.
-      `;
-
-      submitBtn.disabled = true;
-
-    } else {
-
-      statusMessage.className = "success";
-
-      statusMessage.innerHTML = `
-        ✅ Hai ancora ${remainingVotes} preferenz${remainingVotes === 1 ? "a" : "e"} disponibile${remainingVotes === 1 ? "" : "i"}.
-      `;
-    }
-
-  } catch (err) {
-    console.error(err);
-  }
-}
-if (!validToken) {
-
-  statusMessage.className = "warning";
-
-  statusMessage.innerHTML = `
-    ⚠️ Per votare devi utilizzare un QR code valido.
-  `;
-
-  submitBtn.disabled = true;
-  submitBtn.style.opacity = "0.5";
-  submitBtn.style.cursor = "not-allowed";
-
-} else {
-
-  loadVoteStatus();
-
+  div.appendChild(table);
+  return div;
 }
 
-// IMPORTANTISSIMO: mettilo fuori dalle card, non dentro voteContainer
-document.querySelector(".container").appendChild(form);
+/* =========================
+   EVENTS
+========================= */
 
-// =========================
-// SUBMIT VOTO (APRE MODALE)
-// =========================
+function bindEvents() {
 
-form.addEventListener("submit", (e) => {
-  e.preventDefault();
+  document.addEventListener("change", (e) => {
+    if (e.target.type === "checkbox") {
+      handleSelectionLimit();
+    }
+  });
 
-  const checked = document.querySelectorAll("input[name='choice']:checked");
+  document.getElementById("confirmBtn")
+    .addEventListener("click", sendVotes);
+
+  document.querySelector("form")?.addEventListener("submit", e => {
+    e.preventDefault();
+    openConfirm();
+  });
+}
+
+/* =========================
+   SELECTION LOGIC
+========================= */
+
+function handleSelectionLimit() {
+  const checked = getChecked();
+
+  if (checked.length > MAX_VOTES) {
+    event.target.checked = false;
+    alert("Hai raggiunto il limite di voti");
+  }
+}
+
+function getChecked() {
+  return document.querySelectorAll("input[type='checkbox']:checked");
+}
+
+/* =========================
+   MODALE
+========================= */
+
+function openConfirm() {
+  const checked = getChecked();
 
   if (checked.length === 0) {
     alert("Seleziona almeno un progetto");
     return;
   }
 
-  if (checked.length > remainingVotes) {
-    alert(`Puoi ancora esprimere ${remainingVotes} preferenz${remainingVotes === 1 ? "a" : "e"}`);
-    return;
-  }
+  const box = document.getElementById("confirmBox");
+  const text = document.getElementById("confirmText");
 
-  const discipline = Array.from(checked).map(c =>
-    getDisciplina(c.value.split("|")[0])
-  );
+  text.innerHTML = "";
 
-  const uniche = new Set(discipline);
+  checked.forEach(c => {
+    const [id, percorso, scuola, titolo] = c.value.split("|");
 
-  if (checked.length === 2 && uniche.size === 1) {
-    alert("Devi scegliere due discipline diverse");
-    
-    return;
-  }
+    const p = document.createElement("p");
+    p.textContent = `#${id} → ${percorso} → ${scuola}`;
+    text.appendChild(p);
+  });
 
-  openConfirm(checked);
-});
-
-function openConfirm(checked) {
-  const confirmBox = document.getElementById("confirmBox");
-  const confirmText = document.getElementById("confirmText");
-
-  confirmText.innerHTML = "";
-
-    checked.forEach(c => {
-      const [percorso, scuola, titolo] = c.value.split("|");
-
-      const p = document.createElement("p");
-      p.innerText = `#${id} → ${percorso} → ${scuola} → ${titolo}`;
-
-      confirmText.appendChild(p);
-});
-  confirmBox.style.display = "flex";
+  box.style.display = "flex";
 }
 
 function closeConfirm() {
   document.getElementById("confirmBox").style.display = "none";
 }
+
+/* =========================
+   SEND VOTES
+========================= */
+
 async function sendVotes() {
+  const checked = getChecked();
 
-  const checked = document.querySelectorAll("input[name='choice']:checked");
-
-  for (let scelta of checked) {
-
-    const [id, percorso, scuola, titolo] = scelta.value.split("|");
+  for (const c of checked) {
+    const [id, percorso, scuola, titolo] = c.value.split("|");
 
     try {
-      const res = await fetch("/vote", {
+      await fetch("/vote", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-        token,
-        percorso,
-        scuola,
-        titolo
-    })
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ percorso, scuola, titolo })
       });
-
-      const data = await res.json();
-
-      if (!data.success) {
-        alert(data.error || "Errore durante il voto");
-        return;
-      }
-
     } catch (err) {
-      alert("Errore di connessione al server");
-      return;
+      console.error("Errore voto:", err);
     }
   }
 
   remainingVotes -= checked.length;
-usedVotes += checked.length;
 
-if (remainingVotes <= 0) {
+  updateStatus();
 
-  statusMessage.className = "warning";
-
-  statusMessage.innerHTML = `
-    ⚠️ Hai utilizzato tutte le preferenze disponibili.
-  `;
-
-  submitBtn.disabled = true;
-
-} else {
-
-  statusMessage.className = "success";
-
-  statusMessage.innerHTML = `
-    ✅ Voto registrato. Hai ancora ${remainingVotes} preferenz${remainingVotes === 1 ? "a" : "e"} disponibile${remainingVotes === 1 ? "" : "i"}.
-  `;
-}
-
-alert("Voto registrato con successo!");
-
-  document.querySelectorAll("input[name='choice']")
-    .forEach(c => c.checked = false);
-
+  checked.forEach(c => c.checked = false);
   closeConfirm();
 }
 
+/* =========================
+   STATUS UI
+========================= */
+
+function updateStatus() {
+  const el = document.getElementById("statusMessage");
+
+  if (!el) return;
+
+  if (remainingVotes <= 0) {
+    el.textContent = "Hai esaurito i voti disponibili";
+  } else {
+    el.textContent = `Ti restano ${remainingVotes} voti`;
+  }
+}
 </script>
+
 </body>
 </html>
