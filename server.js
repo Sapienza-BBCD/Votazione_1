@@ -40,7 +40,7 @@ db.serialize(() => {
       token TEXT,
       percorso TEXT,
       scuola TEXT,
-      titolo TEXT
+      titolo TEXT,
       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -178,73 +178,81 @@ app.post("/vote", (req, res) => {
 
     if (stato === "pre") return res.json({ error: "Votazione non aperta" });
     if (stato === "closed") return res.json({ error: "Votazione chiusa" });
+    if (!token) return res.json({ error: "QR non valido" });
 
     db.get("SELECT token FROM tokens WHERE token=?", [token], (err, row) => {
-      if (err) {
-        console.error(err);
-        return res.json({ error: "Errore server" });
-      }
-
+      if (err) return res.json({ error: "Errore server" });
       if (!row) return res.json({ error: "Token non valido" });
 
+      // 🔴 controllo doppio progetto
       db.get(
-        "SELECT COUNT(*) as count FROM votes WHERE token=?",
-        [token],
-        (err2, result) => {
-          if (err2) {
-            console.error(err2);
-            return res.json({ error: "Errore server" });
+        "SELECT 1 FROM votes WHERE token=? AND percorso=? AND scuola=?",
+        [token, percorso, scuola],
+        (errDup, dup) => {
+
+          if (errDup) return res.json({ error: "Errore server" });
+
+          if (dup) {
+            return res.json({
+              error: "Hai già votato questo progetto"
+            });
           }
 
-          if (result.count >= MAX_VOTES) {
-            return res.json({ error: "Limite voti raggiunto" });
-          }
+          db.get(
+            "SELECT COUNT(*) as count FROM votes WHERE token=?",
+            [token],
+            (err2, result) => {
 
-        db.all(
-          "SELECT percorso FROM votes WHERE token=?",
-          [token],
-          (err4, rows) => {
+              if (err2) return res.json({ error: "Errore server" });
 
-            if (err4) {
-              console.error(err4);
-              return res.json({ error: "Errore server" });
-            }
-
-            const nuovaDisciplina = getDisciplina(percorso);
-
-            const giaVotate = rows.map(r =>
-              getDisciplina(r.percorso)
-            );
-
-            if (giaVotate.includes(nuovaDisciplina)) {
-              return res.json({
-                error: "Hai già votato questa disciplina"
-              });
-            }
-
-            db.run(
-              "INSERT INTO votes(token,percorso,scuola,titolo) VALUES(?,?,?,?)",
-              [token, percorso, scuola],
-              (err3) => {
-
-                if (err3) {
-                  console.error(err3);
-                  return res.json({
-                    error: "Errore inserimento voto"
-                  });
-                }
-
-                res.json({ success: true });
+              if (result.count >= MAX_VOTES) {
+                return res.json({
+                  error: "Hai già usato i 2 voti disponibili"
+                });
               }
-            );
-          }
-        );
+
+              db.all(
+                "SELECT percorso FROM votes WHERE token=?",
+                [token],
+                (err4, rows) => {
+
+                  if (err4) return res.json({ error: "Errore server" });
+
+                  const nuovaDisciplina = getDisciplina(percorso);
+
+                  const giaVotate = new Set(
+                    rows.map(r => getDisciplina(r.percorso))
+                  );
+
+                  if (giaVotate.has(nuovaDisciplina)) {
+                    return res.json({
+                      error: "Hai già votato questa disciplina"
+                    });
+                  }
+
+                  db.run(
+                    "INSERT INTO votes(token,percorso,scuola,titolo) VALUES(?,?,?,?)",
+                    [token, percorso, scuola, titolo],
+                    (err3) => {
+
+                      if (err3) {
+                        return res.json({
+                          error: "Errore inserimento voto"
+                        });
+                      }
+
+                      res.json({ success: true });
+                    }
+                  );
+                }
+              );
+            }
+          );
         }
       );
     });
   });
 });
-
 // =========================
 // RISULTATI
 // =========================
