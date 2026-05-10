@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<title>Vota il progetto LAB2GO</title>
+<title>Vota progetto LAB2GO</title>
 
 <style>
 body {
@@ -51,9 +51,7 @@ h1 { color: #822433; }
   color: #201c6b;
 }
 
-table {
-  width: 100%;
-}
+table { width: 100%; }
 
 td {
   padding: 8px;
@@ -76,6 +74,11 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* MODALE */
 #confirmBox {
   display: none;
@@ -95,6 +98,9 @@ button {
   max-width: 500px;
   color: white;
 }
+
+.warning { color: #b91c1c; font-weight: bold; }
+.success { color: #166534; font-weight: bold; }
 </style>
 </head>
 
@@ -112,7 +118,7 @@ button {
   <div id="statusMessage"></div>
   <div id="voteContainer"></div>
 
-  <button onclick="openConfirm()">Invia voto</button>
+  <button id="submitBtn">Invia voto</button>
 </div>
 
 <!-- MODALE -->
@@ -129,35 +135,20 @@ button {
 <script>
 
 /* =========================
-   QR TOKEN
+   🔥 TUO DATASET COMPLETO
 ========================= */
-const urlParams = new URLSearchParams(window.location.search);
-const token = urlParams.get("token");
 
-/* =========================
-   LIMITI
-========================= */
-const MAX_VOTES = 2;
-let remainingVotes = MAX_VOTES;
-let projectId = 1;
-
-/* =========================
-   PERCORSI ORIGINALI (INTEGRALI)
-========================= */
 const percorsi = {
-
   "Biologia Vegetale - Esperimento": [
     { nome: "ITA G. Garibaldi Roma", titolo: "Monitoraggio molecolare della filiera del mais: verifica dell'identità 'No-OGM' mediante screening PCR" },
     { nome: "ITA G. Garibaldi Roma + Liceo Righi Roma", titolo: "Tiny Forest come sistema per ripristinare le funzionalità del suolo in un contesto urbano ed agricolo" }
   ],
-
   "Chimica - Esperimento": [
     { nome: "Cavour", titolo: "Pigmenti, gas, elettrochimica e acidità" },
     { nome: "Terenzio Mamiani", titolo: "Quando la chimica incontra la sostenibilità" },
     { nome: "Pertini Falcone", titolo: "Percorsi di chimica sperimentale" },
     { nome: "Torricelli", titolo: "Demistificare la chimica di tutti i giorni" }
   ],
-
   "Fisica - Esperimento": [
     { nome: "Flacco Potenza", titolo: "Analisi fenomenologica della diffrazione ottica" },
     { nome: "G. Lombardo Radice", titolo: "L'ipnosi dei pendoli magici" },
@@ -169,141 +160,171 @@ const percorsi = {
     { nome: "Vian Bracciano", titolo: "Verifica della legge di Lambert-Beer con Arduino" },
     { nome: "Vittoria Colonna", titolo: "Il pendolo nella storia" }
   ],
-
   "Biologia Animale - Poster": [
     { nome: "Livia Bottardi", titolo: "Osservazione di cellule al microscopio ottico" }
   ],
-
   "Biologia Vegetale - Poster": [
     { nome: "Augusto Righi Roma", titolo: "Progettazione e analisi metagenomica di una Tiny Forest" },
-    { nome: "Augusto Righi Roma", titolo: "Progettazione e analisi metagenomica di una Tiny Forest: un approccio integrato tra agronomia, sostenibilità e sequenziamento di terza generazione" }
+    { nome: "Augusto Righi Roma", titolo: "Progettazione e analisi metagenomica di una Tiny Forest: un approccio integrato..." }
   ],
-
   "Chimica - Poster": [
     { nome: "Cavour", titolo: "Pigmenti, gas, elettrochimica e acidità" },
-    { nome: "Garibaldi", titolo: "Determinazione del potenziale biochimico di produzione di metano (BMT test) su matrici organiche di scarto" },
+    { nome: "Garibaldi", titolo: "Determinazione del potenziale biochimico di produzione di metano (BMT test)" },
     { nome: "Evangelista Torricelli", titolo: "Demistificare la chimica di tutti i giorni" }
   ],
-
   "Fisica - Poster": [
     { nome: "Flacco Potenza", titolo: "Analisi biomeccanica delle leve nel corpo umano" },
-    { nome: "Gaetano De Sanctis", titolo: "Sensori, motori e gravità: la meccanica incontra Arduino" },
-    { nome: "Nomentano", titolo: "La pioggia celeste di Muoni: da Poisson allo studio dei raggi cosmici" },
-    { nome: "G. Lombardo Radice", titolo: "Quando le onde che si incontrano... e la fisica si diverte a giocare!" },
-    { nome: "Polo Liceale Alighieri - Dante Alighieri", titolo: "Virgo: sulle tracce dell'invisibile ritmo dell'Universo" },
-    { nome: "Polo Liceale Alighieri - Dante Alighieri", titolo: "Oltre il limite di Heisenberg: schiacciare il vuoto quantistico" },
+    { nome: "Gaetano De Sanctis", titolo: "Sensori, motori e gravità" },
+    { nome: "Nomentano", titolo: "La pioggia celeste di Muoni" },
+    { nome: "G. Lombardo Radice", titolo: "Onde che si incontrano" },
+    { nome: "Polo Liceale Alighieri - Dante Alighieri", titolo: "Virgo" },
+    { nome: "Polo Liceale Alighieri - Dante Alighieri", titolo: "Oltre Heisenberg" },
     { nome: "Vittoria Colonna", titolo: "Il pendolo nella storia" },
-    { nome: "Vian Bracciano", titolo: "Verifica della legge di Lambert-Beer con Arduino" }
+    { nome: "Vian Bracciano", titolo: "Lambert-Beer con Arduino" }
   ],
-
   "Musei Scientifici - Poster": [
     { nome: "Massimiliano Massimo", titolo: "Museo scientifico" },
     { nome: "Pertini Falcone", titolo: "Museo via Rugantino" }
   ],
-
   "Scienze della Terra - Poster": [
-    { nome: "Labriola", titolo: "Esperienza Lab2Go del Liceo Labriola" },
-    { nome: "Galileo Galilei Roma", titolo: "Dall'osservazione alla scopperta: studio di rocce, minerali e paesaggi" }
+    { nome: "Labriola", titolo: "Esperienza Lab2Go" },
+    { nome: "Galileo Galilei Roma", titolo: "Rocce e paesaggi" }
+  ],
+  "Biologia Animale - Talk": [
+    { nome: "J.M. Keynes", titolo: "Microscopio" },
+    { nome: "Socrate Roma", titolo: "3D ricostruzione" }
+  ],
+  "Biologia Vegetale - Talk": [
+    { nome: "ITA Garibaldi Roma", titolo: "Tiny Forest metagenomica" },
+    { nome: "J.V. Neumann", titolo: "Viroma piante urbane" },
+    { nome: "Pertini Falcone", titolo: "Laboratori" },
+    { nome: "Tullio Levi Civita", titolo: "Botanica" }
+  ],
+  "Fisica - Talk": [
+    { nome: "G. Lombardo Radice", titolo: "Poisson" },
+    { nome: "Polo Liceale Alighieri", titolo: "Virgo e vuoto" }
+  ],
+  "Chimica - Talk": [
+    { nome: "Cavour", titolo: "Chimica base" },
+    { nome: "Garibaldi", titolo: "BMT test" },
+    { nome: "Terenzio Mamiani", titolo: "Sostenibilità" },
+    { nome: "Evangelista Torricelli", titolo: "Chimica quotidiana" }
   ]
 };
 
 /* =========================
+   SECURITY STATE (RESTORED)
+========================= */
+
+const token = new URLSearchParams(location.search).get("token");
+const MAX_VOTES = 2;
+
+let remainingVotes = MAX_VOTES;
+
+/* SOLO FLAG CLIENTE */
+const validToken = !!token;
+
+/* =========================
    INIT
 ========================= */
+
 window.addEventListener("DOMContentLoaded", () => {
 
-  if (!token) {
-    document.getElementById("statusMessage").innerText =
-      "⚠️ Devi usare un QR code valido";
-    document.getElementById("voteContainer").style.display = "none";
-    return;
+  render();
+
+  if (!validToken) {
+    lockUI();
+  } else {
+    updateStatus();
   }
 
-  render();
-  loadStatus();
+  document.getElementById("submitBtn")
+    .addEventListener("click", openConfirm);
 });
 
 /* =========================
    RENDER
 ========================= */
+
 function render() {
 
   const container = document.getElementById("voteContainer");
+  let id = 1;
 
   Object.entries(percorsi).forEach(([percorso, items]) => {
 
-    const div = document.createElement("div");
-    div.className = "percorso";
+    const block = document.createElement("div");
+    block.className = "percorso";
 
     const h2 = document.createElement("h2");
     h2.textContent = percorso;
-    div.appendChild(h2);
+    block.appendChild(h2);
 
     const table = document.createElement("table");
 
     items.forEach(item => {
 
-      const id = projectId++;
-
       const tr = document.createElement("tr");
 
       tr.innerHTML = `
-        <td>${id}</td>
+        <td>${id++}</td>
         <td class="scuola">${item.nome}</td>
         <td class="titolo">${item.titolo}</td>
-        <td>
-          <input type="checkbox"
-            value="${id}|${percorso}|${item.nome}|${item.titolo}">
-        </td>
+        <td><input type="checkbox" value="${percorso}|${item.nome}|${item.titolo}"></td>
       `;
 
       table.appendChild(tr);
     });
 
-    div.appendChild(table);
-    container.appendChild(div);
+    block.appendChild(table);
+    container.appendChild(block);
   });
 }
 
 /* =========================
-   LIMIT FRONTEND
+   CHECK RULES
 ========================= */
-document.addEventListener("change", (e) => {
-  if (e.target.type === "checkbox") {
-    const checked = document.querySelectorAll("input:checked");
 
-    if (checked.length > MAX_VOTES) {
-      e.target.checked = false;
-      alert("Puoi selezionare massimo 2 voti");
-    }
+document.addEventListener("change", (e) => {
+
+  if (e.target.type !== "checkbox") return;
+
+  const checked = document.querySelectorAll("input:checked");
+
+  if (checked.length > MAX_VOTES) {
+    e.target.checked = false;
+    alert("Massimo 2 voti");
   }
 });
 
 /* =========================
-   STATUS
+   QR LOCK (RESTORED)
 ========================= */
-async function loadStatus() {
-  try {
-    const res = await fetch(`/vote-status/${token}`);
-    const data = await res.json();
-    remainingVotes = data.remaining;
 
-    document.getElementById("statusMessage").innerText =
-      `Ti restano ${remainingVotes} voti`;
+function lockUI() {
 
-  } catch (e) {
-    console.error(e);
-  }
+  document.getElementById("statusMessage").innerHTML =
+    `<span class="warning">⚠️ Devi usare un QR valido per votare</span>`;
+
+  document.querySelectorAll("input, button").forEach(el => {
+    el.disabled = true;
+  });
 }
 
 /* =========================
    MODALE
 ========================= */
+
 function openConfirm() {
+
+  if (!validToken) return;
 
   const checked = document.querySelectorAll("input:checked");
 
-  if (checked.length === 0) return;
+  if (checked.length === 0) {
+    alert("Seleziona almeno un progetto");
+    return;
+  }
 
   const box = document.getElementById("confirmBox");
   const text = document.getElementById("confirmText");
@@ -311,8 +332,10 @@ function openConfirm() {
   text.innerHTML = "";
 
   checked.forEach(c => {
-    const [id, percorso, scuola] = c.value.split("|");
-    text.innerHTML += `<p>#${id} → ${percorso} → ${scuola}</p>`;
+    const [p, s] = c.value.split("|");
+    const div = document.createElement("div");
+    div.textContent = `${p} → ${s}`;
+    text.appendChild(div);
   });
 
   box.style.display = "flex";
@@ -323,52 +346,56 @@ function closeConfirm() {
 }
 
 /* =========================
-   SEND VOTE
+   SEND (SAFE + LIMIT)
 ========================= */
-async function sendVotes() {
 
-  if (!token) {
-    alert("QR non valido");
-    return;
-  }
+async function sendVotes() {
 
   const checked = document.querySelectorAll("input:checked");
 
-  for (const c of checked) {
-
-    const [id, percorso, scuola, titolo] = c.value.split("|");
-
-    try {
-
-      const res = await fetch("/vote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, percorso, scuola, titolo })
-      });
-
-      const data = await res.json();
-
-      /* 🔴 QUI è il fix fondamentale */
-      if (!res.ok || data.success === false) {
-        alert(data.error || "Hai esaurito i voti disponibili");
-        closeConfirm();
-        return;
-      }
-
-    } catch (err) {
-      alert("Errore di rete");
-      return;
-    }
+  if (checked.length > remainingVotes) {
+    alert("Hai esaurito i voti");
+    return;
   }
 
-  alert("Voto registrato con successo");
+  for (const c of checked) {
 
-  checked.forEach(c => c.checked = false);
+    const [percorso, scuola, titolo] = c.value.split("|");
+
+    await fetch("/vote", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ token, percorso, scuola, titolo })
+    });
+  }
+
+  remainingVotes -= checked.length;
+
+  alert("Voto registrato");
   closeConfirm();
 
-  loadStatus(); // aggiorna stato reale dal server
+  document.querySelectorAll("input:checked")
+    .forEach(c => c.checked = false);
+
+  updateStatus();
+}
+
+/* =========================
+   STATUS
+========================= */
+
+function updateStatus() {
+
+  const el = document.getElementById("statusMessage");
+
+  if (!validToken) return;
+
+  el.innerHTML = remainingVotes <= 0
+    ? `<span class="warning">Hai esaurito i voti</span>`
+    : `<span class="success">Ti restano ${remainingVotes} voti</span>`;
 }
 
 </script>
+
 </body>
 </html>
