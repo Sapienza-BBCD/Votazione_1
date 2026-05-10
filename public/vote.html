@@ -2,11 +2,11 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<title>Vota progetto LAB2GO</title>
+<title>Votazione LAB2GO</title>
 
 <style>
 body {
-  font-family: Arial, sans-serif;
+  font-family: Arial;
   background: #e6f0ff;
   margin: 0;
   text-align: center;
@@ -20,7 +20,6 @@ header {
   display: flex;
   justify-content: space-between;
   padding: 10px 20px;
-  z-index: 1000;
 }
 
 .logo { height: 60px; }
@@ -34,26 +33,24 @@ header {
 }
 
 .container {
-  max-width: 1000px;
-  margin: 140px auto 30px;
+  margin-top: 140px;
+  max-width: 1100px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 h1 { color: #822433; }
 
 .percorso {
-  border-radius: 10px;
-  margin-bottom: 30px;
-  padding: 15px;
   background: #f8fafc;
+  margin: 20px 0;
+  padding: 15px;
+  border-radius: 10px;
 }
 
-.percorso h2 {
-  color: #201c6b;
-}
+.percorso h2 { color: #201c6b; }
 
-table {
-  width: 100%;
-}
+table { width: 100%; }
 
 td {
   padding: 8px;
@@ -65,14 +62,13 @@ td {
 .titolo { color: #822433; font-style: italic; }
 
 button {
-  margin-top: 25px;
-  padding: 14px 40px;
+  margin-top: 20px;
+  padding: 12px 30px;
   font-size: 18px;
-  font-weight: bold;
   background: #822433;
   color: white;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
 }
 
@@ -84,16 +80,14 @@ button {
   background: rgba(0,0,0,0.4);
   justify-content: center;
   align-items: center;
-  z-index: 2000;
 }
 
 #confirmInner {
   background: #1f2937;
+  color: white;
   padding: 20px;
   border-radius: 10px;
-  width: 90%;
   max-width: 500px;
-  color: white;
 }
 </style>
 </head>
@@ -108,9 +102,9 @@ button {
 <div class="separator"></div>
 
 <div class="container">
-  <h1>Vota il progetto preferito (max 2)</h1>
+  <h1>Vota il progetto (max 2)</h1>
 
-  <div id="statusMessage"></div>
+  <div id="status"></div>
   <div id="voteContainer"></div>
 
   <button onclick="openConfirm()">Invia voto</button>
@@ -122,7 +116,7 @@ button {
     <h2>Conferma voto</h2>
     <div id="confirmText"></div>
     <br>
-    <button id="confirmBtn" style="background:green;">Conferma</button>
+    <button onclick="sendVotes()" style="background:green;">Conferma</button>
     <button onclick="closeConfirm()" style="background:red;">Annulla</button>
   </div>
 </div>
@@ -130,55 +124,106 @@ button {
 <script>
 
 /* =========================
-   DATI
+   TUOI PERCORSI (INTEGRI)
 ========================= */
 
 const percorsi = {
+  "Biologia Vegetale - Esperimento": [
+    { nome: "ITA G. Garibaldi Roma", titolo: "Monitoraggio molecolare della filiera del mais: verifica dell'identità 'No-OGM' mediante screening PCR" },
+    { nome: "ITA G. Garibaldi Roma + Liceo Righi Roma", titolo: "Tiny Forest come sistema per ripristinare le funzionalità del suolo in un contesto urbano ed agricolo" }
+  ],
+  "Chimica - Esperimento": [
+    { nome: "Cavour", titolo: "Pigmenti, gas, elettrochimica e acidità" },
+    { nome: "Terenzio Mamiani", titolo: "Quando la chimica incontra la sostenibilità" },
+    { nome: "Pertini Falcone", titolo: "Percorsi di chimica sperimentale" },
+    { nome: "Torricelli", titolo: "Demistificare la chimica di tutti i giorni" }
+  ],
   "Fisica - Esperimento": [
-    { nome: "Liceo A", titolo: "Esperimento 1" },
-    { nome: "Liceo B", titolo: "Esperimento 2" }
+    { nome: "Flacco Potenza", titolo: "Analisi fenomenologica della diffrazione ottica" },
+    { nome: "G. Lombardo Radice", titolo: "L'ipnosi dei pendoli magici" },
+    { nome: "G. Lombardo Radice", titolo: "Quando il suono si somma (o si cancella): il tubo di Quincke" },
+    { nome: "G. Lombardo Radice", titolo: "Quando la luce si spegne: un esperimento di polarizzazione" },
+    { nome: "Gaetano De Sanctis", titolo: "Motori e gravità: la meccanica classica incontra Arduino" },
+    { nome: "Pilo Albertelli Roma", titolo: "Il coherer di Calzecchi Onesti e le onde elettromagnetiche al regio liceo Umberto I" },
+    { nome: "Augusto Righi Roma", titolo: "Il sensore a ultrasuoni HC SR04" },
+    { nome: "Vian Bracciano", titolo: "Verifica della legge di Lambert-Beer con Arduino" },
+    { nome: "Vittoria Colonna", titolo: "Il pendolo nella storia" }
+  ],
+  "Biologia Animale - Poster": [
+    { nome: "Livia Bottardi", titolo: "Osservazione di cellule al microscopio ottico" }
+  ],
+  "Biologia Vegetale - Poster": [
+    { nome: "Augusto Righi Roma", titolo: "Progettazione e analisi metagenomica di una Tiny Forest" },
+    { nome: "Augusto Righi Roma", titolo: "Progettazione e analisi metagenomica di una Tiny Forest: un approccio integrato tra agronomia, sostenibilità e sequenziamento di terza generazione" }
   ],
   "Chimica - Poster": [
-    { nome: "Liceo C", titolo: "Esperimento 3" }
+    { nome: "Cavour", titolo: "Pigmenti, gas, elettrochimica e acidità" },
+    { nome: "Garibaldi", titolo: "Determinazione del potenziale biochimico di produzione di metano (BMT test) su matrici organiche di scarto" },
+    { nome: "Evangelista Torricelli", titolo: "Demistificare la chimica di tutti i giorni" }
+  ],
+  "Fisica - Poster": [
+    { nome: "Flacco Potenza", titolo: "Analisi biomeccanica delle leve nel corpo umano" },
+    { nome: "Gaetano De Sanctis", titolo: "Sensori, motori e gravità: la meccanica incontra Arduino" },
+    { nome: "Nomentano", titolo: "La pioggia celeste di Muoni: da Poisson allo studio dei raggi cosmici" },
+    { nome: "G. Lombardo Radice", titolo: "Quando le onde che si incontrano... e la fisica si diverte a giocare!" },
+    { nome: "Polo Liceale Alighieri - Dante Alighieri", titolo: "Virgo: sulle tracce dell'invisibile ritmo dell'Universo" },
+    { nome: "Polo Liceale Alighieri - Dante Alighieri", titolo: "Oltre il limite di Heisenberg: schiacciare il vuoto quantistico" },
+    { nome: "Vittoria Colonna", titolo: "Il pendolo nella storia" },
+    { nome: "Vian Bracciano", titolo: "Verifica della legge di Lambert-Beer con Arduino" }
+  ],
+  "Musei Scientifici - Poster": [
+    { nome: "Massimiliano Massimo", titolo: "Museo scientifico" },
+    { nome: "Pertini Falcone", titolo: "Museo via Rugantino" }
+  ],
+  "Scienze della Terra - Poster": [
+    { nome: "Labriola", titolo: "Esperienza Lab2Go del Liceo Labriola" },
+    { nome: "Galileo Galilei Roma", titolo: "Dall'osservazione alla scopperta: studio di rocce, minerali e paesaggi" }
+  ],
+  "Biologia Animale - Talk": [
+    { nome: "J.M. Keynes", titolo: "Il mondo dietro il microscopio" },
+    { nome: "Socrate Roma", titolo: "Dal reperto alla ricostruzione 3D" }
+  ],
+  "Biologia Vegetale - Talk": [
+    { nome: "ITA Garibaldi Roma", titolo: "Tiny Forest metagenomica" },
+    { nome: "J.V. Neumann", titolo: "Viroma urbano" },
+    { nome: "Pertini Falcone", titolo: "Laboratori biologia vegetale" },
+    { nome: "Tullio Levi Civita", titolo: "Laboratorio di botanica" }
+  ],
+  "Fisica - Talk": [
+    { nome: "G. Lombardo Radice", titolo: "Poisson e luce" },
+    { nome: "Polo Liceale Alighieri", titolo: "Vuoto e incertezza" }
+  ],
+  "Chimica - Talk": [
+    { nome: "Cavour", titolo: "Chimica sperimentale" },
+    { nome: "Garibaldi", titolo: "BMT test" },
+    { nome: "Terenzio Mamiani", titolo: "Sostenibilità" },
+    { nome: "Evangelista Torricelli", titolo: "Chimica quotidiana" }
   ]
 };
 
 const MAX_VOTES = 2;
-
 let projectId = 1;
-
-/* =========================
-   INIT
-========================= */
-
-window.addEventListener("DOMContentLoaded", () => {
-  renderPercorsi();
-
-  document.getElementById("confirmBtn")
-    .addEventListener("click", sendVotes);
-});
 
 /* =========================
    RENDER
 ========================= */
 
-function renderPercorsi() {
+window.addEventListener("DOMContentLoaded", () => {
 
   const container = document.getElementById("voteContainer");
-  container.innerHTML = "";
 
-  Object.entries(percorsi).forEach(([percorso, items]) => {
+  Object.entries(percorsi).forEach(([p, items]) => {
 
-    const block = document.createElement("div");
-    block.className = "percorso";
+    const div = document.createElement("div");
+    div.className = "percorso";
 
     const h2 = document.createElement("h2");
-    h2.textContent = percorso;
-    block.appendChild(h2);
+    h2.textContent = p;
+    div.appendChild(h2);
 
     const table = document.createElement("table");
 
-    items.forEach(item => {
+    items.forEach(i => {
 
       const id = projectId++;
 
@@ -186,46 +231,38 @@ function renderPercorsi() {
 
       tr.innerHTML = `
         <td>${id}</td>
-        <td class="scuola">${item.nome}</td>
-        <td class="titolo">${item.titolo}</td>
+        <td class="scuola">${i.nome}</td>
+        <td class="titolo">${i.titolo}</td>
         <td>
-          <input type="checkbox"
-            value="${id}|${percorso}|${item.nome}|${item.titolo}">
+          <input type="checkbox" name="vote"
+            value="${id}|${p}|${i.nome}|${i.titolo}">
         </td>
       `;
 
       table.appendChild(tr);
     });
 
-    block.appendChild(table);
-    container.appendChild(block);
+    div.appendChild(table);
+    container.appendChild(div);
   });
-}
+});
 
 /* =========================
-   LIMIT VOTI
+   LIMIT 2 VOTI
 ========================= */
 
 document.addEventListener("change", (e) => {
 
-  if (e.target.type === "checkbox") {
+  if (e.target.name === "vote") {
 
-    const checked = document.querySelectorAll("input:checked");
+    const checked = document.querySelectorAll("input[name='vote']:checked");
 
     if (checked.length > MAX_VOTES) {
       e.target.checked = false;
-      alert("Puoi selezionare massimo 2 progetti");
+      alert("Max 2 voti");
     }
   }
 });
-
-/* =========================
-   HELPERS
-========================= */
-
-function getChecked() {
-  return document.querySelectorAll("input[type='checkbox']:checked");
-}
 
 /* =========================
    MODALE
@@ -233,12 +270,9 @@ function getChecked() {
 
 function openConfirm() {
 
-  const checked = getChecked();
+  const checked = document.querySelectorAll("input[name='vote']:checked");
 
-  if (checked.length === 0) {
-    alert("Seleziona almeno un progetto");
-    return;
-  }
+  if (checked.length === 0) return;
 
   const box = document.getElementById("confirmBox");
   const text = document.getElementById("confirmText");
@@ -246,11 +280,8 @@ function openConfirm() {
   text.innerHTML = "";
 
   checked.forEach(c => {
-    const [id, percorso, scuola] = c.value.split("|");
-
-    const p = document.createElement("p");
-    p.textContent = `#${id} → ${percorso} → ${scuola}`;
-    text.appendChild(p);
+    const [id, p, s, t] = c.value.split("|");
+    text.innerHTML += `<p>#${id} → ${p} → ${s}</p>`;
   });
 
   box.style.display = "flex";
@@ -261,34 +292,11 @@ function closeConfirm() {
 }
 
 /* =========================
-   INVIO VOTO
+   SEND (placeholder backend)
 ========================= */
 
 async function sendVotes() {
-
-  const checked = getChecked();
-
-  if (checked.length === 0) return;
-
-  for (const c of checked) {
-
-    const [id, percorso, scuola, titolo] = c.value.split("|");
-
-    try {
-      await fetch("/vote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ percorso, scuola, titolo })
-      });
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  alert("Voto registrato con successo!");
-
-  checked.forEach(c => c.checked = false);
-
+  alert("Voto inviato (collega backend)");
   closeConfirm();
 }
 
