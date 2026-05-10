@@ -109,8 +109,11 @@ button {
 
 <div class="container">
   <h1>Vota il progetto preferito (max 2)</h1>
+
   <div id="statusMessage"></div>
   <div id="voteContainer"></div>
+
+  <button onclick="openConfirm()">Invia voto</button>
 </div>
 
 <!-- MODALE -->
@@ -125,110 +128,100 @@ button {
 </div>
 
 <script>
+
 /* =========================
    DATI
 ========================= */
 
-const percorsi = { /* 👈 il tuo oggetto invariato */ };
+const percorsi = {
+  "Fisica - Esperimento": [
+    { nome: "Liceo A", titolo: "Esperimento 1" },
+    { nome: "Liceo B", titolo: "Esperimento 2" }
+  ],
+  "Chimica - Poster": [
+    { nome: "Liceo C", titolo: "Esperimento 3" }
+  ]
+};
 
 const MAX_VOTES = 2;
 
-/* =========================
-   STATE
-========================= */
-
-let remainingVotes = MAX_VOTES;
 let projectId = 1;
-let selectedChoices = [];
 
 /* =========================
-   INIT SAFE
+   INIT
 ========================= */
 
 window.addEventListener("DOMContentLoaded", () => {
-  renderAll();
-  bindEvents();
+  renderPercorsi();
+
+  document.getElementById("confirmBtn")
+    .addEventListener("click", sendVotes);
 });
 
 /* =========================
    RENDER
 ========================= */
 
-function renderAll() {
-  const container = document.getElementById("voteContainer");
-  if (!container) return;
+function renderPercorsi() {
 
-  Object.keys(percorsi).forEach(percorso => {
-    const block = createPercorsoBlock(percorso, percorsi[percorso]);
+  const container = document.getElementById("voteContainer");
+  container.innerHTML = "";
+
+  Object.entries(percorsi).forEach(([percorso, items]) => {
+
+    const block = document.createElement("div");
+    block.className = "percorso";
+
+    const h2 = document.createElement("h2");
+    h2.textContent = percorso;
+    block.appendChild(h2);
+
+    const table = document.createElement("table");
+
+    items.forEach(item => {
+
+      const id = projectId++;
+
+      const tr = document.createElement("tr");
+
+      tr.innerHTML = `
+        <td>${id}</td>
+        <td class="scuola">${item.nome}</td>
+        <td class="titolo">${item.titolo}</td>
+        <td>
+          <input type="checkbox"
+            value="${id}|${percorso}|${item.nome}|${item.titolo}">
+        </td>
+      `;
+
+      table.appendChild(tr);
+    });
+
+    block.appendChild(table);
     container.appendChild(block);
   });
 }
 
-function createPercorsoBlock(percorso, items) {
-  const div = document.createElement("div");
-  div.className = "percorso";
-
-  const h2 = document.createElement("h2");
-  h2.textContent = percorso;
-  div.appendChild(h2);
-
-  const table = document.createElement("table");
-
-  items.forEach(item => {
-    const id = projectId++;
-
-    const tr = document.createElement("tr");
-
-    tr.innerHTML = `
-      <td style="width:50px">${id}</td>
-      <td class="scuola">${item.nome}</td>
-      <td class="titolo">${item.titolo}</td>
-      <td>
-        <input type="checkbox"
-               value="${id}|${percorso}|${item.nome}|${item.titolo}">
-      </td>
-    `;
-
-    table.appendChild(tr);
-  });
-
-  div.appendChild(table);
-  return div;
-}
-
 /* =========================
-   EVENTS
+   LIMIT VOTI
 ========================= */
 
-function bindEvents() {
+document.addEventListener("change", (e) => {
 
-  document.addEventListener("change", (e) => {
-    if (e.target.type === "checkbox") {
-      handleSelectionLimit();
+  if (e.target.type === "checkbox") {
+
+    const checked = document.querySelectorAll("input:checked");
+
+    if (checked.length > MAX_VOTES) {
+      e.target.checked = false;
+      alert("Puoi selezionare massimo 2 progetti");
     }
-  });
-
-  document.getElementById("confirmBtn")
-    .addEventListener("click", sendVotes);
-
-  document.querySelector("form")?.addEventListener("submit", e => {
-    e.preventDefault();
-    openConfirm();
-  });
-}
+  }
+});
 
 /* =========================
-   SELECTION LOGIC
+   HELPERS
 ========================= */
-
-function handleSelectionLimit() {
-  const checked = getChecked();
-
-  if (checked.length > MAX_VOTES) {
-    event.target.checked = false;
-    alert("Hai raggiunto il limite di voti");
-  }
-}
 
 function getChecked() {
   return document.querySelectorAll("input[type='checkbox']:checked");
@@ -239,6 +232,7 @@ function getChecked() {
 ========================= */
 
 function openConfirm() {
+
   const checked = getChecked();
 
   if (checked.length === 0) {
@@ -252,7 +246,7 @@ function openConfirm() {
   text.innerHTML = "";
 
   checked.forEach(c => {
-    const [id, percorso, scuola, titolo] = c.value.split("|");
+    const [id, percorso, scuola] = c.value.split("|");
 
     const p = document.createElement("p");
     p.textContent = `#${id} → ${percorso} → ${scuola}`;
@@ -267,49 +261,37 @@ function closeConfirm() {
 }
 
 /* =========================
-   SEND VOTES
+   INVIO VOTO
 ========================= */
 
 async function sendVotes() {
+
   const checked = getChecked();
 
+  if (checked.length === 0) return;
+
   for (const c of checked) {
+
     const [id, percorso, scuola, titolo] = c.value.split("|");
 
     try {
       await fetch("/vote", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ percorso, scuola, titolo })
       });
     } catch (err) {
-      console.error("Errore voto:", err);
+      console.error(err);
     }
   }
 
-  remainingVotes -= checked.length;
-
-  updateStatus();
+  alert("Voto registrato con successo!");
 
   checked.forEach(c => c.checked = false);
+
   closeConfirm();
 }
 
-/* =========================
-   STATUS UI
-========================= */
-
-function updateStatus() {
-  const el = document.getElementById("statusMessage");
-
-  if (!el) return;
-
-  if (remainingVotes <= 0) {
-    el.textContent = "Hai esaurito i voti disponibili";
-  } else {
-    el.textContent = `Ti restano ${remainingVotes} voti`;
-  }
-}
 </script>
 
 </body>
