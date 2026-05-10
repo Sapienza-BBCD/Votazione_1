@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <title>LIVE - Risultati LAB2GO</title>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
 body {
   font-family: Arial;
@@ -21,57 +23,37 @@ h1 {
 #totalVotes {
   text-align:center;
   font-size:24px;
-  margin-bottom:20px;
+  margin-bottom:10px;
 }
 
-/* PERCORSO */
+/* GRAFICO */
+canvas {
+  width: 90%;
+  max-width: 1100px;
+  margin: 20px auto;
+  display: block;
+  background: white;
+  border-radius: 12px;
+  padding: 10px;
+}
+
+/* SEZIONI */
 .percorso {
-  margin: 40px auto;
+  margin: 30px auto;
   width: 85%;
 }
 
-/* TITOLO */
 .percorso h2 {
   text-align: center;
   border-bottom: 2px solid white;
   padding-bottom: 10px;
 }
 
-/* PODIO */
-.podio {
-  display: flex;
-  justify-content: space-around;
-  margin-top: 30px;
-}
-
-.podio div {
-  width: 30%;
-  padding: 15px;
-  border-radius: 12px;
-  text-align: center;
-  animation: slideUp 0.8s ease;
-}
-
-@keyframes slideUp {
-  from { transform: translateY(100px); opacity:0; }
-  to { transform: translateY(0); opacity:1; }
-}
-
-.first {
-  background: gold;
-  color: black;
-  transform: scale(1.1);
-  box-shadow: 0 0 20px gold;
-}
-
-.second { background: silver; color: black; }
-.third { background: #cd7f32; color: black; }
-
-/* TABELLA */
+/* BARRE LISTA */
 table {
   width: 100%;
-  margin-top: 25px;
   border-collapse: collapse;
+  margin-top: 15px;
 }
 
 td {
@@ -79,28 +61,17 @@ td {
   border-bottom: 1px solid #ffffff33;
 }
 
-/* BARRE */
 .bar {
-  background: linear-gradient(90deg, #60A5FA, #3B82F6);
-  height: 22px;
-  display: inline-block;
+  height: 20px;
   border-radius: 6px;
-  transition: width 0.6s ease;
+  background: linear-gradient(90deg, #60A5FA, #3B82F6);
+  transition: width 0.8s ease-in-out;
 }
 
-/* TITOLO PICCOLO */
 .titolo {
-  font-style: italic;
-  font-size: 13px;
-  display: block;
+  font-size: 12px;
   opacity: 0.8;
-}
-
-/* LEADER HIGHLIGHT */
-.leader {
-  font-weight: bold;
-  color: #FFD700;
-  font-size: 18px;
+  display: block;
 }
 </style>
 
@@ -109,121 +80,187 @@ td {
 <body>
 
 <h1>🏆 RISULTATI LIVE LAB2GO</h1>
+
 <div id="totalVotes">Totale voti: 0</div>
+
+<canvas id="chart"></canvas>
 
 <div id="resultsContainer"></div>
 
 <script>
 
-// 🔥 USA LA STESSA MAPPATURA TITOLI DI PRIMA
-const titoli = {
-  "Fisica - Esperimento|IIS Gaetano De Sanctis": "Sensori, Motori e Gravità",
-  "Fisica - Esperimento|G. Lombardo Radice": "Esperimenti vari",
-  "Chimica - Esperimento|Liceo Terenzio Mamiani": "Chimica e sostenibilità",
-  "Biologia Animale - Talk|Liceo Socrate Roma": "Ricostruzione 3D"
-  // 👉 puoi lasciare anche solo i principali
-};
+/* =========================
+   CONFIG CATEGORIE
+========================= */
+const categorie = [
+  "Fisica",
+  "Biologia vegetale",
+  "Biologia animale",
+  "Chimica",
+  "Musei scientifici",
+  "Scienze della Terra"
+];
 
-function getTitolo(percorso, scuola) {
-  return titoli[`${percorso}|${scuola}`] || "";
+/* =========================
+   CLASSIFICAZIONE
+========================= */
+function getCategoria(p) {
+  p = p.toLowerCase();
+
+  if (p.includes("fisica")) return "Fisica";
+  if (p.includes("biologia vegetale")) return "Biologia vegetale";
+  if (p.includes("biologia animale")) return "Biologia animale";
+  if (p.includes("chimica")) return "Chimica";
+  if (p.includes("musei")) return "Musei scientifici";
+  if (p.includes("terra")) return "Scienze della Terra";
+
+  return "Altro";
 }
 
+function getTipo(p) {
+  p = p.toLowerCase();
+
+  if (p.includes("talk")) return "Talk";
+  if (p.includes("esperimento")) return "Esperimento";
+  if (p.includes("poster")) return "Poster";
+
+  return "Altro";
+}
+
+/* =========================
+   FETCH
+========================= */
 async function fetchResults() {
   const res = await fetch("/results-data?t=" + Date.now());
   return await res.json();
 }
 
+/* =========================
+   GRAFICO
+========================= */
+let chart;
+
+function renderChart(data) {
+
+  const ctx = document.getElementById("chart");
+
+  const talk = categorie.map(c => data[c]["Talk"]);
+  const esperimento = categorie.map(c => data[c]["Esperimento"]);
+  const poster = categorie.map(c => data[c]["Poster"]);
+
+  if (chart) chart.destroy();
+
+  chart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: categorie,
+      datasets: [
+        {
+          label: "Talk",
+          data: talk,
+          backgroundColor: "#60A5FA",
+          borderRadius: 6
+        },
+        {
+          label: "Esperimento",
+          data: esperimento,
+          backgroundColor: "#34D399",
+          borderRadius: 6
+        },
+        {
+          label: "Poster",
+          data: poster,
+          backgroundColor: "#FBBF24",
+          borderRadius: 6
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+
+      animation: {
+        duration: 1200,
+        easing: "easeOutQuart"
+      },
+
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { precision: 0 }
+        }
+      }
+    }
+  });
+}
+
+/* =========================
+   RENDER
+========================= */
 function renderResults(data) {
 
   const container = document.getElementById("resultsContainer");
-
-  // 🔥 svuota sempre tutto
   container.innerHTML = "";
 
-  document.getElementById("totalVotes").innerText =
-    "Totale voti: " + data.totale;
+  /* 🔥 contatore animato */
+  let displayed = 0;
+  const target = data.totale;
 
-  // 🔥 FIX FONDAMENTALE
-  if (!data.risultati || data.risultati.length === 0) {
-    container.innerHTML =
-      "<h2 style='text-align:center'>Nessun voto registrato</h2>";
-    return;
-  }
+  const counter = setInterval(() => {
+    displayed += Math.ceil(target / 25);
 
-  const grouped = {};
+    if (displayed >= target) {
+      displayed = target;
+      clearInterval(counter);
+    }
+
+    document.getElementById("totalVotes").innerText =
+      "Totale voti: " + displayed;
+
+  }, 20);
+
+  if (!data.risultati || data.risultati.length === 0) return;
+
+  /* 🔥 struttura grafico */
+  const chartData = {
+    "Fisica": { Talk:0, Esperimento:0, Poster:0 },
+    "Biologia vegetale": { Talk:0, Esperimento:0, Poster:0 },
+    "Biologia animale": { Talk:0, Esperimento:0, Poster:0 },
+    "Chimica": { Talk:0, Esperimento:0, Poster:0 },
+    "Musei scientifici": { Talk:0, Esperimento:0, Poster:0 },
+    "Scienze della Terra": { Talk:0, Esperimento:0, Poster:0 }
+  };
 
   data.risultati.forEach(r => {
-    if (!grouped[r.percorso]) grouped[r.percorso] = [];
-    grouped[r.percorso].push(r);
+
+    const cat = getCategoria(r.percorso);
+    const tipo = getTipo(r.percorso);
+
+    if (chartData[cat]) {
+      chartData[cat][tipo] += r.votes;
+    }
   });
 
-  for (const percorso in grouped) {
+  renderChart(chartData);
 
-    const elenco = grouped[percorso];
-    elenco.sort((a,b) => b.votes - a.votes);
-
-    const maxVotes = elenco[0]?.votes || 1;
+  /* 🔥 lista sotto */
+  data.risultati.forEach(r => {
 
     const div = document.createElement("div");
     div.className = "percorso";
 
-    const titolo = document.createElement("h2");
-    titolo.innerText = percorso;
-    div.appendChild(titolo);
+    div.innerHTML = `
+      <h2>${r.percorso}</h2>
+      <div>${r.scuola} — <b>${r.votes}</b> voti</div>
+    `;
 
-    // 🏆 PODIO
-    const podio = document.createElement("div");
-    podio.className = "podio";
-
-    [0,1,2].forEach(i => {
-      if (elenco[i]) {
-        const classe = ["first","second","third"][i];
-
-        podio.innerHTML += `
-          <div class="${classe}">
-            ${["🥇","🥈","🥉"][i]} 
-            <div class="leader">${elenco[i].scuola}</div>
-            <span class="titolo">${getTitolo(percorso, elenco[i].scuola)}</span>
-            <br>${elenco[i].votes} voti
-          </div>
-        `;
-      }
-    });
-
-    div.appendChild(podio);
-
-    // 📊 TABELLA
-    const table = document.createElement("table");
-
-    elenco.forEach(r => {
-
-      const percent = (r.votes / maxVotes) * 100;
-
-      const tr = document.createElement("tr");
-
-      const td1 = document.createElement("td");
-      td1.innerHTML = `
-        ${r.scuola}
-        <span class="titolo">${getTitolo(r.percorso, r.scuola)}</span>
-      `;
-
-      const td2 = document.createElement("td");
-      td2.innerHTML =
-        `<div class="bar" style="width:${percent}%"></div> ${r.votes}`;
-
-      tr.appendChild(td1);
-      tr.appendChild(td2);
-
-      table.appendChild(tr);
-    });
-
-    div.appendChild(table);
     container.appendChild(div);
-  }
+  });
 }
 
-// 🔁 AUTO REFRESH FLUIDO
-async function update(){
+/* =========================
+   LIVE UPDATE
+========================= */
+async function update() {
   const data = await fetchResults();
   renderResults(data);
 }
