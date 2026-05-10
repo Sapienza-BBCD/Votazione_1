@@ -7,6 +7,11 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
+
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   font-family: Arial;
   background: linear-gradient(#1E3A8A, #0f172a);
@@ -49,7 +54,6 @@ canvas {
   padding-bottom: 10px;
 }
 
-/* BARRE LISTA */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -73,13 +77,33 @@ td {
   opacity: 0.8;
   display: block;
 }
-</style>
 
+.liveBox {
+  text-align:center;
+  font-size:18px;
+  margin-bottom:15px;
+}
+
+.live {
+  color:#22c55e;
+  font-weight:bold;
+}
+
+.closed {
+  color:#ef4444;
+  font-weight:bold;
+}
+
+</style>
 </head>
 
 <body>
 
 <h1>🏆 RISULTATI LIVE LAB2GO</h1>
+
+<div class="liveBox" id="liveStatus">
+  <span class="live">● LIVE</span>
+</div>
 
 <div id="totalVotes">Totale voti: 0</div>
 
@@ -90,8 +114,9 @@ td {
 <script>
 
 /* =========================
-   CONFIG CATEGORIE
+   CONFIG
 ========================= */
+
 const categorie = [
   "Fisica",
   "Biologia vegetale",
@@ -101,10 +126,16 @@ const categorie = [
   "Scienze della Terra"
 ];
 
+let chart = null;
+let lastHash = "";
+let intervalId = null;
+
 /* =========================
    CLASSIFICAZIONE
 ========================= */
+
 function getCategoria(p) {
+
   p = p.toLowerCase();
 
   if (p.includes("fisica")) return "Fisica";
@@ -118,6 +149,7 @@ function getCategoria(p) {
 }
 
 function getTipo(p) {
+
   p = p.toLowerCase();
 
   if (p.includes("talk")) return "Talk";
@@ -130,30 +162,36 @@ function getTipo(p) {
 /* =========================
    FETCH
 ========================= */
+
 async function fetchResults() {
+
   const res = await fetch("/results-data?t=" + Date.now());
+
   return await res.json();
 }
 
 /* =========================
    GRAFICO
 ========================= */
-let chart;
 
-function renderChart(data) {
+function renderChart(chartData) {
 
   const ctx = document.getElementById("chart");
 
-  const talk = categorie.map(c => data[c]["Talk"]);
-  const esperimento = categorie.map(c => data[c]["Esperimento"]);
-  const poster = categorie.map(c => data[c]["Poster"]);
+  const talk = categorie.map(c => chartData[c]["Talk"]);
+  const esperimento = categorie.map(c => chartData[c]["Esperimento"]);
+  const poster = categorie.map(c => chartData[c]["Poster"]);
 
-  if (chart) chart.destroy();
+  if (chart) {
+    chart.destroy();
+  }
 
   chart = new Chart(ctx, {
     type: "bar",
+
     data: {
       labels: categorie,
+
       datasets: [
         {
           label: "Talk",
@@ -175,7 +213,9 @@ function renderChart(data) {
         }
       ]
     },
+
     options: {
+
       responsive: true,
 
       animation: {
@@ -183,10 +223,20 @@ function renderChart(data) {
         easing: "easeOutQuart"
       },
 
+      plugins: {
+        legend: {
+          labels: {
+            color: "black"
+          }
+        }
+      },
+
       scales: {
         y: {
           beginAtZero: true,
-          ticks: { precision: 0 }
+          ticks: {
+            precision: 0
+          }
         }
       }
     }
@@ -196,17 +246,23 @@ function renderChart(data) {
 /* =========================
    RENDER
 ========================= */
+
 function renderResults(data) {
 
   const container = document.getElementById("resultsContainer");
+
   container.innerHTML = "";
 
-  /* 🔥 contatore animato */
+  /* =========================
+     CONTATORE ANIMATO
+  ========================= */
+
   let displayed = 0;
-  const target = data.totale;
+  const target = data.totale || 0;
 
   const counter = setInterval(() => {
-    displayed += Math.ceil(target / 25);
+
+    displayed += Math.ceil(target / 20);
 
     if (displayed >= target) {
       displayed = target;
@@ -216,11 +272,12 @@ function renderResults(data) {
     document.getElementById("totalVotes").innerText =
       "Totale voti: " + displayed;
 
-  }, 20);
+  }, 25);
 
-  if (!data.risultati || data.risultati.length === 0) return;
+  /* =========================
+     GRAFICO DATA
+  ========================= */
 
-  /* 🔥 struttura grafico */
   const chartData = {
     "Fisica": { Talk:0, Esperimento:0, Poster:0 },
     "Biologia vegetale": { Talk:0, Esperimento:0, Poster:0 },
@@ -242,31 +299,78 @@ function renderResults(data) {
 
   renderChart(chartData);
 
-  /* 🔥 lista sotto */
-  data.risultati.forEach(r => {
+  /* =========================
+     LISTA RISULTATI
+  ========================= */
 
-    const div = document.createElement("div");
-    div.className = "percorso";
+  data.risultati
+    .sort((a,b) => b.votes - a.votes)
+    .forEach(r => {
 
-    div.innerHTML = `
-      <h2>${r.percorso}</h2>
-      <div>${r.scuola} — <b>${r.votes}</b> voti</div>
-    `;
+      const div = document.createElement("div");
 
-    container.appendChild(div);
-  });
+      div.className = "percorso";
+
+      div.innerHTML = `
+        <h2>${r.percorso}</h2>
+
+        <table>
+          <tr>
+            <td style="width:40%">
+              ${r.scuola}
+            </td>
+
+            <td style="width:60%">
+              <div class="bar"
+                style="width:${r.votes * 20}px">
+              </div>
+            </td>
+
+            <td>
+              <b>${r.votes}</b>
+            </td>
+          </tr>
+        </table>
+      `;
+
+      container.appendChild(div);
+    });
 }
 
 /* =========================
-   LIVE UPDATE
+   UPDATE SMART
 ========================= */
+
 async function update() {
-  const data = await fetchResults();
-  renderResults(data);
+
+  try {
+
+    const data = await fetchResults();
+
+    /* 🔥 aggiorna SOLO se cambia qualcosa */
+    const hash = JSON.stringify(data);
+
+    if (hash === lastHash) {
+      return;
+    }
+
+    lastHash = hash;
+
+    renderResults(data);
+
+  } catch(err) {
+    console.error(err);
+  }
 }
 
+/* =========================
+   START
+========================= */
+
 update();
-setInterval(update, 3000);
+
+/* 🔥 aggiornamento live NON invasivo */
+intervalId = setInterval(update, 3000);
 
 </script>
 
