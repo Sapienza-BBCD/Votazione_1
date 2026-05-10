@@ -289,6 +289,8 @@ const validToken = !!token;
 // CONFIG
 // =========================
 const MAX_VOTES = 2;
+let remainingVotes = MAX_VOTES;
+let usedVotes = 0;
 
 // prende la disciplina (Fisica, Chimica, ecc.)
 function getDisciplina(percorso) {
@@ -332,9 +334,9 @@ document.addEventListener("change", (e) => {
 
     const checked = document.querySelectorAll("input[name='choice']:checked");
 
-    if (checked.length > MAX_VOTES) {
+    if (checked.length > remainingVotes) {
       e.target.checked = false;
-      alert("Puoi selezionare massimo 2 progetti");
+      alert(`Puoi selezionare massimo ${remainingVotes} progett${remainingVotes === 1 ? "o" : "i"}`);
     }
   }
 });
@@ -353,7 +355,41 @@ form.appendChild(submitBtn);
 
 // 👇 AGGIUNGI QUI
 const statusMessage = document.getElementById("statusMessage");
+async function loadVoteStatus() {
 
+  if (!token) return;
+
+  try {
+
+    const res = await fetch(`/vote-status/${token}`);
+    const data = await res.json();
+
+    usedVotes = data.used;
+    remainingVotes = data.remaining;
+
+    if (remainingVotes <= 0) {
+
+      statusMessage.className = "warning";
+
+      statusMessage.innerHTML = `
+        ⚠️ Hai già utilizzato tutte le preferenze disponibili.
+      `;
+
+      submitBtn.disabled = true;
+
+    } else {
+
+      statusMessage.className = "success";
+
+      statusMessage.innerHTML = `
+        ✅ Hai ancora ${remainingVotes} preferenz${remainingVotes === 1 ? "a" : "e"} disponibile${remainingVotes === 1 ? "" : "i"}.
+      `;
+    }
+
+  } catch (err) {
+    console.error(err);
+  }
+}
 if (!validToken) {
 
   statusMessage.className = "warning";
@@ -368,11 +404,8 @@ if (!validToken) {
 
 } else {
 
-  statusMessage.className = "success";
+  loadVoteStatus();
 
-  statusMessage.innerHTML = `
-    ✅ QR code valido. Puoi votare.
-  `;
 }
 
 // IMPORTANTISSIMO: mettilo fuori dalle card, non dentro voteContainer
@@ -392,8 +425,8 @@ form.addEventListener("submit", (e) => {
     return;
   }
 
-  if (checked.length > MAX_VOTES) {
-    alert("Massimo 2 voti");
+  if (checked.length > remainingVotes) {
+    alert(`Puoi ancora esprimere ${remainingVotes} preferenz${remainingVotes === 1 ? "a" : "e"}`);
     return;
   }
 
@@ -465,7 +498,29 @@ async function sendVotes() {
     }
   }
 
-  alert("Voto registrato con successo!");
+  remainingVotes -= checked.length;
+usedVotes += checked.length;
+
+if (remainingVotes <= 0) {
+
+  statusMessage.className = "warning";
+
+  statusMessage.innerHTML = `
+    ⚠️ Hai utilizzato tutte le preferenze disponibili.
+  `;
+
+  submitBtn.disabled = true;
+
+} else {
+
+  statusMessage.className = "success";
+
+  statusMessage.innerHTML = `
+    ✅ Voto registrato. Hai ancora ${remainingVotes} preferenz${remainingVotes === 1 ? "a" : "e"} disponibile${remainingVotes === 1 ? "" : "i"}.
+  `;
+}
+
+alert("Voto registrato con successo!");
 
   document.querySelectorAll("input[name='choice']")
     .forEach(c => c.checked = false);

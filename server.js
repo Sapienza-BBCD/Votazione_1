@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 3000;
 const BASE_URL = process.env.BASE_URL || "https://votazione-1.onrender.com";
 const PARTICIPANTI = 350;
 const MAX_VOTES = 2;
-const ADMIN_PASSWORD = "lab2go";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "lab2go";
 
 // =========================
 // MIDDLEWARE
@@ -40,6 +40,7 @@ db.serialize(() => {
       token TEXT,
       percorso TEXT,
       scuola TEXT,
+      titolo TEXT
       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -107,7 +108,9 @@ function setStato(val, cb) {
     }
   );
 }
-
+function getDisciplina(percorso) {
+  return percorso.split(" - ")[0].trim();
+}
 // =========================
 // PAGES
 // =========================
@@ -169,7 +172,7 @@ app.get("/reset-votes", (req, res) => {
 // VOTO (FIX LOGICO)
 // =========================
 app.post("/vote", (req, res) => {
-  const { token, percorso, scuola } = req.body;
+  const { token, percorso, scuola, titolo } = req.body;
 
   getStato((stato) => {
 
@@ -197,18 +200,45 @@ app.post("/vote", (req, res) => {
             return res.json({ error: "Limite voti raggiunto" });
           }
 
-          db.run(
-            "INSERT INTO votes(token,percorso,scuola) VALUES(?,?,?)",
-            [token, percorso, scuola],
-            (err3) => {
-              if (err3) {
-                console.error(err3);
-                return res.json({ error: "Errore inserimento voto" });
-              }
+        db.all(
+          "SELECT percorso FROM votes WHERE token=?",
+          [token],
+          (err4, rows) => {
 
-              res.json({ success: true });
+            if (err4) {
+              console.error(err4);
+              return res.json({ error: "Errore server" });
             }
-          );
+
+            const nuovaDisciplina = getDisciplina(percorso);
+
+            const giaVotate = rows.map(r =>
+              getDisciplina(r.percorso)
+            );
+
+            if (giaVotate.includes(nuovaDisciplina)) {
+              return res.json({
+                error: "Hai già votato questa disciplina"
+              });
+            }
+
+            db.run(
+              "INSERT INTO votes(token,percorso,scuola,titolo) VALUES(?,?,?,?)",
+              [token, percorso, scuola],
+              (err3) => {
+
+                if (err3) {
+                  console.error(err3);
+                  return res.json({
+                    error: "Errore inserimento voto"
+                  });
+                }
+
+                res.json({ success: true });
+              }
+            );
+          }
+        );
         }
       );
     });
@@ -243,6 +273,34 @@ app.get("/results-data", (req, res) => {
       });
     });
   });
+});
+
+// =========================
+// STATUS TOKEN / VOTI RIMANENTI
+// =========================
+app.get("/vote-status/:token", (req, res) => {
+
+  const token = req.params.token;
+
+  db.get(
+    "SELECT COUNT(*) as count FROM votes WHERE token=?",
+    [token],
+    (err, row) => {
+
+      if (err) {
+        console.error(err);
+        return res.json({ error: "Errore server" });
+      }
+
+      const used = row?.count || 0;
+
+      res.json({
+        used,
+        remaining: Math.max(0, MAX_VOTES - used),
+        max: MAX_VOTES
+      });
+    }
+  );
 });
 
 // =========================
