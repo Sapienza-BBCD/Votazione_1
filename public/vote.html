@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<title>Vota progetto LAB2GO</title>
+<title>Vota il progetto LAB2GO</title>
 
 <style>
 body {
@@ -51,7 +51,9 @@ h1 { color: #822433; }
   color: #201c6b;
 }
 
-table { width: 100%; }
+table {
+  width: 100%;
+}
 
 td {
   padding: 8px;
@@ -74,6 +76,7 @@ button {
   cursor: pointer;
 }
 
+/* MODALE */
 #confirmBox {
   display: none;
   position: fixed;
@@ -126,23 +129,23 @@ button {
 <script>
 
 /* =========================
-   SICUREZZA QR
+   QR TOKEN
 ========================= */
 const urlParams = new URLSearchParams(window.location.search);
 const token = urlParams.get("token");
-const validToken = !!token;
 
 /* =========================
-   MAX VOTI
+   LIMITI
 ========================= */
 const MAX_VOTES = 2;
 let remainingVotes = MAX_VOTES;
 let projectId = 1;
 
 /* =========================
-   I TUOI PERCORSI (INTEGRALI)
+   PERCORSI ORIGINALI (INTEGRALI)
 ========================= */
 const percorsi = {
+
   "Biologia Vegetale - Esperimento": [
     { nome: "ITA G. Garibaldi Roma", titolo: "Monitoraggio molecolare della filiera del mais: verifica dell'identità 'No-OGM' mediante screening PCR" },
     { nome: "ITA G. Garibaldi Roma + Liceo Righi Roma", titolo: "Tiny Forest come sistema per ripristinare le funzionalità del suolo in un contesto urbano ed agricolo" }
@@ -169,8 +172,39 @@ const percorsi = {
 
   "Biologia Animale - Poster": [
     { nome: "Livia Bottardi", titolo: "Osservazione di cellule al microscopio ottico" }
+  ],
+
+  "Biologia Vegetale - Poster": [
+    { nome: "Augusto Righi Roma", titolo: "Progettazione e analisi metagenomica di una Tiny Forest" },
+    { nome: "Augusto Righi Roma", titolo: "Progettazione e analisi metagenomica di una Tiny Forest: un approccio integrato tra agronomia, sostenibilità e sequenziamento di terza generazione" }
+  ],
+
+  "Chimica - Poster": [
+    { nome: "Cavour", titolo: "Pigmenti, gas, elettrochimica e acidità" },
+    { nome: "Garibaldi", titolo: "Determinazione del potenziale biochimico di produzione di metano (BMT test) su matrici organiche di scarto" },
+    { nome: "Evangelista Torricelli", titolo: "Demistificare la chimica di tutti i giorni" }
+  ],
+
+  "Fisica - Poster": [
+    { nome: "Flacco Potenza", titolo: "Analisi biomeccanica delle leve nel corpo umano" },
+    { nome: "Gaetano De Sanctis", titolo: "Sensori, motori e gravità: la meccanica incontra Arduino" },
+    { nome: "Nomentano", titolo: "La pioggia celeste di Muoni: da Poisson allo studio dei raggi cosmici" },
+    { nome: "G. Lombardo Radice", titolo: "Quando le onde che si incontrano... e la fisica si diverte a giocare!" },
+    { nome: "Polo Liceale Alighieri - Dante Alighieri", titolo: "Virgo: sulle tracce dell'invisibile ritmo dell'Universo" },
+    { nome: "Polo Liceale Alighieri - Dante Alighieri", titolo: "Oltre il limite di Heisenberg: schiacciare il vuoto quantistico" },
+    { nome: "Vittoria Colonna", titolo: "Il pendolo nella storia" },
+    { nome: "Vian Bracciano", titolo: "Verifica della legge di Lambert-Beer con Arduino" }
+  ],
+
+  "Musei Scientifici - Poster": [
+    { nome: "Massimiliano Massimo", titolo: "Museo scientifico" },
+    { nome: "Pertini Falcone", titolo: "Museo via Rugantino" }
+  ],
+
+  "Scienze della Terra - Poster": [
+    { nome: "Labriola", titolo: "Esperienza Lab2Go del Liceo Labriola" },
+    { nome: "Galileo Galilei Roma", titolo: "Dall'osservazione alla scopperta: studio di rocce, minerali e paesaggi" }
   ]
-  // 👇 (qui puoi reinserire gli altri identici blocchi se vuoi, non li ho tagliati logicamente)
 };
 
 /* =========================
@@ -178,32 +212,32 @@ const percorsi = {
 ========================= */
 window.addEventListener("DOMContentLoaded", () => {
 
-  if (!validToken) {
-    document.getElementById("statusMessage").innerHTML =
-      "⚠️ Devi usare un QR code valido per votare";
+  if (!token) {
+    document.getElementById("statusMessage").innerText =
+      "⚠️ Devi usare un QR code valido";
     document.getElementById("voteContainer").style.display = "none";
     return;
   }
 
-  renderPercorsi();
-  loadVoteStatus();
+  render();
+  loadStatus();
 });
 
 /* =========================
    RENDER
 ========================= */
-function renderPercorsi() {
+function render() {
 
   const container = document.getElementById("voteContainer");
 
   Object.entries(percorsi).forEach(([percorso, items]) => {
 
-    const block = document.createElement("div");
-    block.className = "percorso";
+    const div = document.createElement("div");
+    div.className = "percorso";
 
     const h2 = document.createElement("h2");
     h2.textContent = percorso;
-    block.appendChild(h2);
+    div.appendChild(h2);
 
     const table = document.createElement("table");
 
@@ -226,13 +260,13 @@ function renderPercorsi() {
       table.appendChild(tr);
     });
 
-    block.appendChild(table);
-    container.appendChild(block);
+    div.appendChild(table);
+    container.appendChild(div);
   });
 }
 
 /* =========================
-   LIMIT CHECK
+   LIMIT FRONTEND
 ========================= */
 document.addEventListener("change", (e) => {
   if (e.target.type === "checkbox") {
@@ -240,29 +274,25 @@ document.addEventListener("change", (e) => {
 
     if (checked.length > MAX_VOTES) {
       e.target.checked = false;
-      alert("Puoi selezionare massimo 2 progetti");
+      alert("Puoi selezionare massimo 2 voti");
     }
   }
 });
 
 /* =========================
-   STATUS QR
+   STATUS
 ========================= */
-async function loadVoteStatus() {
-
-  if (!token) return;
-
+async function loadStatus() {
   try {
     const res = await fetch(`/vote-status/${token}`);
     const data = await res.json();
-
     remainingVotes = data.remaining;
 
     document.getElementById("statusMessage").innerText =
       `Ti restano ${remainingVotes} voti`;
 
-  } catch (err) {
-    console.error(err);
+  } catch (e) {
+    console.error(e);
   }
 }
 
@@ -273,10 +303,7 @@ function openConfirm() {
 
   const checked = document.querySelectorAll("input:checked");
 
-  if (checked.length === 0) {
-    alert("Seleziona almeno un progetto");
-    return;
-  }
+  if (checked.length === 0) return;
 
   const box = document.getElementById("confirmBox");
   const text = document.getElementById("confirmText");
@@ -284,11 +311,8 @@ function openConfirm() {
   text.innerHTML = "";
 
   checked.forEach(c => {
-    const [id, percorso, scuola, titolo] = c.value.split("|");
-
-    const p = document.createElement("p");
-    p.textContent = `#${id} → ${percorso} → ${scuola}`;
-    text.appendChild(p);
+    const [id, percorso, scuola] = c.value.split("|");
+    text.innerHTML += `<p>#${id} → ${percorso} → ${scuola}</p>`;
   });
 
   box.style.display = "flex";
@@ -303,10 +327,7 @@ function closeConfirm() {
 ========================= */
 async function sendVotes() {
 
-  if (!token) {
-    alert("QR non valido");
-    return;
-  }
+  if (!token) return;
 
   const checked = document.querySelectorAll("input:checked");
 
@@ -316,7 +337,7 @@ async function sendVotes() {
 
     await fetch("/vote", {
       method: "POST",
-      headers: {"Content-Type": "application/json"},
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token, percorso, scuola, titolo })
     });
   }
