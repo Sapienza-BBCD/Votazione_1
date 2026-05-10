@@ -144,10 +144,14 @@ app.post("/vote", (req, res) => {
 
   if (!token) return res.json({ error: "QR non valido" });
 
-  getStato((stato) => {
-
-    if (stato !== "open") {
-      return res.json({ error: "Votazione non attiva" });
+    function getStato(cb) {
+      db.get("SELECT value FROM settings WHERE key='stato'", (err, row) => {
+        if (err) {
+          console.error(err);
+          return cb("pre");
+        }
+        cb(row?.value || "pre");
+      });
     }
 
     // token valido?
@@ -208,6 +212,41 @@ app.post("/vote", (req, res) => {
       );
     });
   });
+});
+
+// =========================
+// RISULTATI
+// =========================
+app.get("/results-data", (req, res) => {
+
+  db.all(`
+    SELECT percorso, scuola, titolo, COUNT(*) as votes
+    FROM votes
+    GROUP BY percorso, scuola, titolo
+    ORDER BY votes DESC
+  `, (err, rows) => {
+
+    if (err) {
+      console.error(err);
+      return res.json({ error: "Errore risultati" });
+    }
+
+    db.get("SELECT COUNT(*) as totale FROM votes", (err2, tot) => {
+
+      if (err2) {
+        console.error(err2);
+        return res.json({ error: "Errore conteggio" });
+      }
+
+      res.json({
+        totale: tot?.totale || 0,
+        risultati: rows || []
+      });
+
+    });
+
+  });
+
 });
 
 // =========================
