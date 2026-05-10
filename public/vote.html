@@ -311,12 +311,28 @@ Object.keys(percorsi).sort().forEach(percorso => {
     const table = document.createElement("table");
 
 percorsi[percorso].forEach(item => {
+
+  const currentId = projectId++;
   const tr = document.createElement("tr");
 
     tr.innerHTML = `
+      <td style="width:60px; font-size:22px; font-weight:bold; color:#201c6b;">
+        ${currentId}
+      </td>
+
       <td class="scuola">${item.nome}</td>
-      <td class="titolo">${item.titolo}</td>
-      <td><input type="checkbox" name="choice" value="${percorso}|${item.nome}|${item.titolo}"></td>
+
+      <td class="titolo">
+        ${item.titolo}
+      </td>
+
+      <td>
+        <input 
+          type="checkbox"
+          name="choice"
+          value="${currentId}|${percorso}|${item.nome}|${item.titolo}"
+        >
+      </td>
 `   ;
 
   table.appendChild(tr);
@@ -455,7 +471,7 @@ function openConfirm(checked) {
       const [percorso, scuola, titolo] = c.value.split("|");
 
       const p = document.createElement("p");
-      p.innerText = `${percorso} → ${scuola} → ${titolo}`;
+      p.innerText = `#${id} → ${percorso} → ${scuola} → ${titolo}`;
 
       confirmText.appendChild(p);
 });
@@ -471,7 +487,7 @@ async function sendVotes() {
 
   for (let scelta of checked) {
 
-    const [percorso, scuola, titolo] = scelta.value.split("|");
+    const [id, percorso, scuola, titolo] = scelta.value.split("|");
 
     try {
       const res = await fetch("/vote", {
