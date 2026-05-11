@@ -13,7 +13,7 @@ const BASE_URL = process.env.BASE_URL || "https://votazione-1.onrender.com";
 const PARTICIPANTI = 350;
 const MAX_VOTES = 2;
 
-// ========================= STATE SERVER (FONDAMENTALE)
+// ========================= STATE
 let votingState = "pre"; // pre | open | closed
 
 // ========================= MIDDLEWARE
@@ -44,8 +44,7 @@ db.serialize(() => {
     )
   `);
 
-  // genera QR fissi UNA SOLA VOLTA
-  const stmt = db.prepare(`INSERT OR IGNORE INTO tokens(token) VALUES(?)`);
+  const stmt = db.prepare("INSERT OR IGNORE INTO tokens(token) VALUES(?)");
 
   for (let i = 1; i <= PARTICIPANTI; i++) {
     stmt.run(`LAB2GO-${i}`);
@@ -91,10 +90,9 @@ app.get("/reset-votes", (req, res) => {
     if (err) return res.json({ ok: false, error: err.message });
     res.json({ ok: true });
   });
-
 });
 
-// ========================= VOTO STATUS
+// ========================= VOTE STATUS
 app.get("/vote-status/:token", (req, res) => {
 
   const token = req.params.token;
@@ -104,7 +102,7 @@ app.get("/vote-status/:token", (req, res) => {
     [token],
     (err, row) => {
 
-      if (err) return res.json({ error: "Errore server" });
+      if (err) return res.json({ error: "server error" });
 
       res.json({
         used: row?.used || 0,
@@ -115,7 +113,7 @@ app.get("/vote-status/:token", (req, res) => {
   );
 });
 
-// ========================= VOTO
+// ========================= VOTE
 app.post("/vote", (req, res) => {
 
   const { token, percorso, scuola, titolo } = req.body;
@@ -126,97 +124,103 @@ app.post("/vote", (req, res) => {
     return res.json({ error: "Votazione non attiva" });
   }
 
-  db.get(
-    "SELECT token FROM tokens WHERE token=?",
-    [token],
-    (err, row) => {
+  db.get("SELECT token FROM tokens WHERE token=?", [token], (err, row) => {
 
-      if (!row) return res.json({ error: "Token non valido" });
+    if (!row) return res.json({ error: "Token non valido" });
 
-      // già votato stesso progetto
-      db.get(
-        "SELECT 1 FROM votes WHERE token=? AND percorso=? AND scuola=?",
-        [token, percorso, scuola],
-        (err2, dup) => {
+    db.get(
+      "SELECT 1 FROM votes WHERE token=? AND percorso=? AND scuola=?",
+      [token, percorso, scuola],
+      (err2, dup) => {
 
-          if (dup) {
-            return res.json({ error: "Già votato questo progetto" });
-          }
+        if (dup) return res.json({ error: "Già votato questo progetto" });
 
-          // limite totale voti
-          db.get(
-            "SELECT COUNT(*) AS count FROM votes WHERE token=?",
-            [token],
-            (err3, countRow) => {
+        db.get(
+          "SELECT COUNT(*) AS count FROM votes WHERE token=?",
+          [token],
+          (err3, countRow) => {
 
-              if ((countRow?.count || 0) >= MAX_VOTES) {
-                return res.json({ error: "Hai esaurito i voti" });
-              }
-
-              // disciplina unica
-              db.all(
-                "SELECT percorso FROM votes WHERE token=?",
-                [token],
-                (err4, rows) => {
-
-                  const nuova = getDisciplina(percorso);
-                  const gia = (rows || []).map(r => getDisciplina(r.percorso));
-
-                  if (gia.includes(nuova)) {
-                    return res.json({ error: "Hai già votato questa disciplina" });
-                  }
-
-                  db.run(
-                    "INSERT INTO votes(token,percorso,scuola,titolo) VALUES(?,?,?,?)",
-                    [token, percorso, scuola, titolo],
-                    (err5) => {
-
-                      if (err5) {
-                        return res.json({ error: "Errore salvataggio" });
-                      }
-
-                      res.json({ success: true });
-                    }
-                  );
-                }
-              );
+            if ((countRow?.count || 0) >= MAX_VOTES) {
+              return res.json({ error: "Hai esaurito i voti" });
             }
-          );
-        }
-      );
-    }
-  );
+
+            db.all(
+              "SELECT percorso FROM votes WHERE token=?",
+              [token],
+              (err4, rows) => {
+
+                const nuova = getDisciplina(percorso);
+                const gia = (rows || []).map(r => getDisciplina(r.percorso));
+
+                if (gia.includes(nuova)) {
+                  return res.json({ error: "Hai già votato questa disciplina" });
+                }
+
+                db.run(
+                  "INSERT INTO votes(token,percorso,scuola,titolo) VALUES(?,?,?,?)",
+                  [token, percorso, scuola, titolo],
+                  (err5) => {
+
+                    if (err5) return res.json({ error: "Errore salvataggio" });
+
+                    res.json({ success: true });
+                  }
+                );
+              }
+            );
+          }
+        );
+      }
+    );
+  });
 });
 
-// ========================= RISULTATI
+// ========================= RESULTS (CORRETTO + CLASSIFICA)
 app.get("/results-data", (req, res) => {
 
   db.all(`
     SELECT percorso, scuola, titolo, COUNT(*) as votes
     FROM votes
     GROUP BY percorso, scuola, titolo
-    ORDER BY votes DESC
   `, (err, rows) => {
 
-    if (err) return res.json({ error: "Errore risultati" });
+    if (err) return res.json({ error: err.message });
 
-    db.get("SELECT COUNT(*) as totale FROM votes", (err2, tot) => {
+    const risultati = rows || [];
 
-      res.json({
-        totale: tot?.totale || 0,
-        risultati: rows || []
-      });
+    const classificaMap = {};
 
+    for (const r of risultati) {
+      classificaMap[r.percorso] = (classificaMap[r.percorso] || 0) + r.votes;
+    }
+
+    const classifica = Object.entries(classificaMap)
+      .map(([percorso, votes]) => ({ percorso, votes }))
+      .sort((a, b) => b.votes - a.votes);
+
+    const totale = risultati.reduce((s, r) => s + r.votes, 0);
+
+    res.json({
+      totale,
+      risultati,
+      classifica
     });
-
   });
-
 });
 
-// ========================= DEBUG
+// ========================= DEBUG VOTES
 app.get("/debug-votes", (req, res) => {
   db.all("SELECT * FROM votes", (err, rows) => {
-    res.json(rows);
+    if (err) return res.json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// ========================= DEBUG TOKENS
+app.get("/debug-tokens", (req, res) => {
+  db.all("SELECT * FROM tokens", (err, rows) => {
+    if (err) return res.json({ error: err.message });
+    res.json(rows || []);
   });
 });
 

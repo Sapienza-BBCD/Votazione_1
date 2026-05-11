@@ -146,35 +146,43 @@ async function loadVotes() {
 ========================= */
 async function loadTokens() {
 
-  const res = await fetch("/debug-tokens");
-  const tokens = await res.json();
+  try {
 
-  const votesRes = await fetch("/debug-votes");
-  const votes = await votesRes.json();
+    const [tokensRes, votesRes] = await Promise.all([
+      fetch("/debug-tokens"),
+      fetch("/debug-votes")
+    ]);
 
-  const map = {};
+    const tokens = await tokensRes.json();
+    const votes = await votesRes.json();
 
-  votes.forEach(v => {
-    map[v.token] = (map[v.token] || 0) + 1;
-  });
+    const map = {};
 
-  const tbody = document.getElementById("tokens");
-  tbody.innerHTML = "";
+    votes.forEach(v => {
+      map[v.token] = (map[v.token] || 0) + 1;
+    });
 
-  tokens.forEach(t => {
+    const tbody = document.getElementById("tokens");
+    tbody.innerHTML = "";
 
-    const used = map[t.token] || 0;
+    tokens.forEach(t => {
 
-    const tr = document.createElement("tr");
+      const used = map[t.token] || 0;
 
-    tr.innerHTML = `
-      <td>${t.token}</td>
-      <td>${used}</td>
-      <td>${used > 0 ? "✔️ usato" : "⭕ libero"}</td>
-    `;
+      const tr = document.createElement("tr");
 
-    tbody.appendChild(tr);
-  });
+      tr.innerHTML = `
+        <td>${t.token}</td>
+        <td>${used}</td>
+        <td>${used > 0 ? "✔️ usato" : "⭕ libero"}</td>
+      `;
+
+      tbody.appendChild(tr);
+    });
+
+  } catch (err) {
+    console.error("Errore tokens:", err);
+  }
 }
 
 /* =========================
