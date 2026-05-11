@@ -195,10 +195,10 @@ const data = await res.json();
 
 console.log("RESULTS:", data);
 
-const classifica = data.classifica || [];
+const classifica = data.risultati || [];
 
 // labels = ID progetto
-const labels = classifica.map(r => ID ${r.id_progetto});
+const labels = classifica.map(r => `ID ${r.id_progetto}`);
 
 // voti
 const values = classifica.map(r => r.votes);
