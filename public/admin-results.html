@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Admin Results</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+  font-family: Arial;
+  margin: 20px;
+  background: #0f172a;
+  color: white;
+}
+
+h1 { text-align:center; }
+
+section {
+  margin: 30px 0;
+  padding: 15px;
+  background: #1e293b;
+  border-radius: 10px;
+}
+
+/* TABELLE */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+td, th {
+  border: 1px solid #334155;
+  padding: 8px;
+  font-size: 13px;
+}
+
+th {
+  background: #111827;
+}
+
+/* BADGE */
+.badge {
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.ok { background: #16a34a; }
+.warn { background: #dc2626; }
+
+</style>
+</head>
+
+<body>
+
+<h1>📊 ADMIN DASHBOARD RISULTATI</h1>
+
+<section>
+  <h2>📌 Stato votazione</h2>
+  <div id="status"></div>
+</section>
+
+<section>
+  <h2>🏆 Classifica</h2>
+  <canvas id="chart"></canvas>
+</section>
+
+<section>
+  <h2>📱 Utilizzo QR / Token</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Token</th>
+        <th>Voti usati</th>
+        <th>Stato</th>
+      </tr>
+    </thead>
+    <tbody id="tokens"></tbody>
+  </table>
+</section>
+
+<section>
+  <h2>🧾 Tutti i voti</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Token</th>
+        <th>Percorso</th>
+        <th>Scuola</th>
+        <th>Titolo</th>
+      </tr>
+    </thead>
+    <tbody id="votes"></tbody>
+  </table>
+</section>
+
+<script>
+
+let chart;
+
+/* =========================
+   STATUS
+========================= */
+async function loadStatus() {
+  const res = await fetch("/status");
+  const data = await res.json();
+
+  document.getElementById("status").innerHTML =
+    data.stato === "open"
+      ? `<span class="badge ok">APERTA</span>`
+      : `<span class="badge warn">CHIUSA</span>`;
+}
+
+/* =========================
+   VOTI GREZZI
+========================= */
+async function loadVotes() {
+
+  const res = await fetch("/debug-votes");
+  const data = await res.json();
+
+  const tbody = document.getElementById("votes");
+  tbody.innerHTML = "";
+
+  data.forEach(v => {
+
+    const tr = document.createElement("tr");
+
+    tr.innerHTML = `
+      <td>${v.id}</td>
+      <td>${v.token}</td>
+      <td>${v.percorso}</td>
+      <td>${v.scuola}</td>
+      <td>${v.titolo}</td>
+    `;
+
+    tbody.appendChild(tr);
+  });
+}
+
+/* =========================
+   TOKEN USAGE
+========================= */
+async function loadTokens() {
+
+  const res = await fetch("/debug-tokens");
+  const tokens = await res.json();
+
+  const votesRes = await fetch("/debug-votes");
+  const votes = await votesRes.json();
+
+  const map = {};
+
+  votes.forEach(v => {
+    map[v.token] = (map[v.token] || 0) + 1;
+  });
+
+  const tbody = document.getElementById("tokens");
+  tbody.innerHTML = "";
+
+  tokens.forEach(t => {
+
+    const used = map[t.token] || 0;
+
+    const tr = document.createElement("tr");
+
+    tr.innerHTML = `
+      <td>${t.token}</td>
+      <td>${used}</td>
+      <td>${used > 0 ? "✔️ usato" : "⭕ libero"}</td>
+    `;
+
+    tbody.appendChild(tr);
+  });
+}
+
+/* =========================
+   CLASSIFICA
+========================= */
+async function loadChart() {
+
+  const res = await fetch("/results-data");
+  const data = await res.json();
+
+  const labels = data.risultati.map(r => r.percorso);
+  const values = data.risultati.map(r => r.votes);
+
+  if (chart) chart.destroy();
+
+  chart = new Chart(
+    document.getElementById("chart"),
+    {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [{
+          label: "Voti",
+          data: values
+        }]
+      }
+    }
+  );
+}
+
+/* =========================
+   INIT + REFRESH
+========================= */
+async function loadAll() {
+  await loadStatus();
+  await loadVotes();
+  await loadTokens();
+  await loadChart();
+}
+
+loadAll();
+setInterval(loadAll, 5000);
+
+</script>
+
+</body>
+</html>
