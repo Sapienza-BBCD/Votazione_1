@@ -185,24 +185,25 @@ async function loadChart() {
   const res = await fetch("/results-data");
   const data = await res.json();
 
-  const labels = data.risultati.map(r => r.percorso);
-  const values = data.risultati.map(r => r.votes);
+  const map = {};
 
-  if (chart) chart.destroy();
+  // 🔥 AGGREGAZIONE CORRETTA
+  data.risultati.forEach(r => {
 
-  chart = new Chart(
-    document.getElementById("chart"),
-    {
-      type: "bar",
-      data: {
-        labels,
-        datasets: [{
-          label: "Voti",
-          data: values
-        }]
-      }
+    if (!map[r.percorso]) {
+      map[r.percorso] = 0;
     }
-  );
+
+    map[r.percorso] += r.votes;
+  });
+
+  const labels = Object.keys(map);
+  const values = Object.values(map);
+
+  chart.data.labels = labels;
+  chart.data.datasets[0].data = values;
+
+  chart.update();
 }
 
 /* =========================
