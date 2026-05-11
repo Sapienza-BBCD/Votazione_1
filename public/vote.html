@@ -278,55 +278,103 @@ window.addEventListener("DOMContentLoaded", () => {
 
 function render() {
 
-const container = document.getElementById("voteContainer");
+  const container = document.getElementById("voteContainer");
 
-let id = 1;
+  let id = 1;
 
-Object.entries(percorsi).forEach(([percorso, items]) => {
+  Object.entries(percorsi).forEach(([percorso, items]) => {
 
-```
-const block = document.createElement("div");
-block.className = "percorso";
+    const block = document.createElement("div");
+    block.className = "percorso";
 
-const h2 = document.createElement("h2");
-h2.textContent = percorso;
+    const h2 = document.createElement("h2");
+    h2.textContent = percorso;
 
-block.appendChild(h2);
+    block.appendChild(h2);
 
-const table = document.createElement("table");
+    const table = document.createElement("table");
 
-items.forEach(item => {
+    items.forEach(item => {
 
-  // genera ID automatico
-  item.id_progetto = id;
+      // genera ID automatico
+      item.id_progetto = id;
 
-  const tr = document.createElement("tr");
+      const tr = document.createElement("tr");
 
-  tr.innerHTML = `
-    <td><b>${item.id_progetto}</b></td>
-    <td class="scuola">${item.nome}</td>
-    <td class="titolo">${item.titolo}</td>
-    <td>
-      <input
-        type="checkbox"
-        data-id="${item.id_progetto}"
-        value="${percorso}|${item.nome}|${item.titolo}">
-    </td>
-  `;
+      tr.innerHTML = `
+        <td><b>${item.id_progetto}</b></td>
+        <td class="scuola">${item.nome}</td>
+        <td class="titolo">${item.titolo}</td>
+        <td>
+          <input
+            type="checkbox"
+            data-id="${item.id_progetto}"
+            value="${percorso}|${item.nome}|${item.titolo}">
+        </td>
+      `;
 
-  table.appendChild(tr);
+      table.appendChild(tr);
 
-  id++;
-});
+      id++;
+    });
 
-block.appendChild(table);
+    block.appendChild(table);
 
-container.appendChild(block);
-```
+    container.appendChild(block);
 
-});
+  });
 }
 
+async function sendVotes() {
+
+  const checked = document.querySelectorAll("input:checked");
+
+  if (checked.length > remainingVotes) {
+    alert("Hai esaurito i voti");
+    return;
+  }
+
+  for (const c of checked) {
+
+    const [percorso, scuola, titolo] = c.value.split("|");
+
+    // ID automatico del progetto
+    const id_progetto = Number(c.dataset.id);
+
+    const res = await fetch("/vote", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        token,
+        id_progetto,
+        percorso,
+        scuola,
+        titolo
+      })
+    });
+
+    const data = await res.json();
+
+    if (data.error) {
+      alert(data.error);
+      return;
+    }
+  }
+
+  remainingVotes -= checked.length;
+
+  alert("Voto registrato");
+
+  closeConfirm();
+
+  document
+    .querySelectorAll("input:checked")
+    .forEach(c => c.checked = false);
+
+  updateStatus();
+}
 
 /* =========================
    CHECK RULES
