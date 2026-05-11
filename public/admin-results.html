@@ -193,23 +193,23 @@ async function loadChart() {
   const res = await fetch("/results-data");
   const data = await res.json();
 
-  console.log("CLASSIFICA:", data.classifica);
+  console.log("DATA:", data);
 
-  const labels = data.classifica.map(r => r.percorso);
-  const values = data.classifica.map(r => r.votes);
+  const classifica = data.classifica || [];
+
+  const labels = classifica.map(r => r.percorso);
+  const values = classifica.map(r => r.votes);
 
   const ctx = document.getElementById("chart");
 
-  if (chart) {
-    chart.destroy();
-  }
+  if (chart) chart.destroy();
 
   chart = new Chart(ctx, {
     type: "bar",
     data: {
       labels,
       datasets: [{
-        label: "Voti",
+        label: "Voti totali per progetto",
         data: values,
         backgroundColor: "#60A5FA"
       }]
@@ -217,10 +217,7 @@ async function loadChart() {
     options: {
       responsive: true,
       scales: {
-        y: {
-          beginAtZero: true,
-          ticks: { precision: 0 }
-        }
+        y: { beginAtZero: true, ticks: { precision: 0 } }
       }
     }
   });
