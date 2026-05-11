@@ -339,9 +339,11 @@ function renderResults(data) {
 
 /* =========================
    UPDATE SMART
+=========/* =========================
+   LIVE UPDATE
 ========================= */
 
-async function update() {
+async function liveUpdate() {
 
   try {
 
@@ -349,7 +351,7 @@ async function update() {
     const statoRes = await fetch("/status?t=" + Date.now());
     const statoData = await statoRes.json();
 
-    // 🔴 se chiusa → stop refresh
+    // 🔴 VOTAZIONE CHIUSA
     if (statoData.stato === "closed") {
 
       clearInterval(intervalId);
@@ -357,16 +359,17 @@ async function update() {
       document.getElementById("liveStatus").innerHTML =
         `<span class="closed">● VOTAZIONE CHIUSA</span>`;
 
-      return;
+      return; // ⛔ STOP DEFINITIVO
     }
 
-    // 🟢 live
+    // 🟢 LIVE
     document.getElementById("liveStatus").innerHTML =
       `<span class="live">● LIVE</span>`;
 
-    // risultati
+    // 🔥 prendi risultati
     const data = await fetchResults();
 
+    // aggiorna solo se cambia qualcosa
     const hash = JSON.stringify(data);
 
     if (hash === lastHash) {
@@ -382,56 +385,14 @@ async function update() {
     console.error(err);
   }
 }
-/* =========================
-   STATUS CHECK
-========================= */
-
-async function checkStatus() {
-
-  try {
-
-    const res = await fetch("/status?t=" + Date.now());
-
-    const data = await res.json();
-
-    // 🔴 VOTAZIONE CHIUSA
-    if (data.stato === "closed") {
-
-      clearInterval(intervalId);
-
-      document.getElementById("liveStatus").innerHTML =
-        `<span class="closed">● VOTAZIONE CHIUSA</span>`;
-
-      return;
-    }
-
-    // 🟢 LIVE
-    document.getElementById("liveStatus").innerHTML =
-      `<span class="live">● LIVE</span>`;
-
-  } catch(err) {
-    console.error(err);
-  }
-}
-
-/* =========================
-   UPDATE COMPLETO
-========================= */
-
-async function liveUpdate() {
-
-  await checkStatus();
-
-  await update();
-}
 
 /* =========================
    START
 ========================= */
 
-Update();
+liveUpdate();
 
-intervalId = setInterval(Update, 3000);
+intervalId = setInterval(liveUpdate, 3000);
 
 </script>
 
