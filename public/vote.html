@@ -464,64 +464,6 @@ function closeConfirm() {
   document.getElementById("confirmBox").style.display = "none";
 }
 
-/* =========================
-   SEND (SAFE + LIMIT)
-========================= */
-
-async function sendVotes() {
-
-const checked = document.querySelectorAll("input:checked");
-
-if (checked.length > remainingVotes) {
-alert("Hai esaurito i voti");
-return;
-}
-
-for (const c of checked) {
-
-```
-const [percorso, scuola, titolo] = c.value.split("|");
-
-// recupera ID automatico
-const id_progetto = Number(c.dataset.id);
-
-const res = await fetch("/vote", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify({
-    token,
-    id_progetto,
-    percorso,
-    scuola,
-    titolo
-  })
-});
-
-const data = await res.json();
-
-if (data.error) {
-  alert(data.error);
-  return;
-}
-```
-
-}
-
-remainingVotes -= checked.length;
-
-alert("Voto registrato");
-
-closeConfirm();
-
-document
-.querySelectorAll("input:checked")
-.forEach(c => c.checked = false);
-
-updateStatus();
-}
-
 
 /* =========================
    STATUS
