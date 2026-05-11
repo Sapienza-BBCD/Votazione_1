@@ -193,25 +193,37 @@ async function loadChart() {
   const res = await fetch("/results-data");
   const data = await res.json();
 
-  const map = {};
+  console.log("CLASSIFICA:", data.classifica);
 
-  // 🔥 AGGREGAZIONE CORRETTA
-  data.risultati.forEach(r => {
+  const labels = data.classifica.map(r => r.percorso);
+  const values = data.classifica.map(r => r.votes);
 
-    if (!map[r.percorso]) {
-      map[r.percorso] = 0;
+  const ctx = document.getElementById("chart");
+
+  if (chart) {
+    chart.destroy();
+  }
+
+  chart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        label: "Voti",
+        data: values,
+        backgroundColor: "#60A5FA"
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { precision: 0 }
+        }
+      }
     }
-
-    map[r.percorso] += r.votes;
   });
-
-  const labels = Object.keys(map);
-  const values = Object.values(map);
-
-  chart.data.labels = labels;
-  chart.data.datasets[0].data = values;
-
-  chart.update();
 }
 
 /* =========================
