@@ -190,34 +190,34 @@ async function loadTokens() {
 ========================= */
 async function loadChart() {
 
-const res = await fetch("/results-data");
-const data = await res.json();
+  const res = await fetch("/results-data");
+  const data = await res.json();
 
-console.log("RESULTS:", data);
+  const risultati = data.risultati || [];
 
-const classifica = data.risultati || [];
+  // X = tutti gli ID unici
+  const labels = risultati.map(r => `ID ${r.id_progetto}`);
 
-// labels = ID progetto
-const labels = classifica.map(r => `ID ${r.id_progetto}`);
+  const datasets = [];
 
-// voti
-const values = classifica.map(r => r.votes);
+  const colori = {
+    "Esperimento": "#3B82F6",
+    "Poster": "#10B981",
+    "Talk": "#F59E0B"
+  };
 
-// colori per tipo
-const colors = classifica.map(r => {
+  // crea 3 dataset separati (uno per tipo)
+  ["Esperimento", "Poster", "Talk"].forEach(tipo => {
 
-if (r.percorso.includes("Esperimento"))
-  return "#3B82F6";
+    datasets.push({
+      label: tipo,
+      data: risultati
+        .filter(r => r.percorso.includes(tipo))
+        .map(r => r.votes),
+      backgroundColor: colori[tipo]
+    });
 
-if (r.percorso.includes("Poster"))
-  return "#10B981";
-
-if (r.percorso.includes("Talk"))
-  return "#F59E0B";
-
-return "#94A3B8";
-
-});
+  });
 
 const ctx = document.getElementById("chart");
 
