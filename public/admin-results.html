@@ -190,96 +190,91 @@ async function loadTokens() {
 ========================= */
 async function loadChart() {
 
-  const res = await fetch("/results-data");
-  const data = await res.json();
+const res = await fetch("/results-data");
+const data = await res.json();
 
-  const risultati = data.risultati || [];
+console.log("RESULTS:", data);
 
-  // LABELS = ID PROGETTO
-  const labels = risultati.map(r => `ID ${r.id_progetto}`);
+const classifica = data.classifica || [];
 
-  // VOTI
-  const values = risultati.map(r => r.votes);
+// labels = ID progetto
+const labels = classifica.map(r => ID ${r.id_progetto});
 
-  // COLORI in base al tipo
-  const colors = risultati.map(r => {
+// voti
+const values = classifica.map(r => r.votes);
 
-    if (r.percorso.includes("Esperimento"))
-      return "#3B82F6";
+// colori per tipo
+const colors = classifica.map(r => {
 
-    if (r.percorso.includes("Poster"))
-      return "#10B981";
+if (r.percorso.includes("Esperimento"))
+  return "#3B82F6";
 
-    if (r.percorso.includes("Talk"))
-      return "#F59E0B";
+if (r.percorso.includes("Poster"))
+  return "#10B981";
 
-    return "#94A3B8";
-  });
+if (r.percorso.includes("Talk"))
+  return "#F59E0B";
 
-  // TOOLTIP DETTAGLIATA
-  const fullLabels = risultati.map(r =>
-    `${r.percorso}
-ID ${r.id_progetto}
-${r.scuola}
-${r.titolo}`
-  );
+return "#94A3B8";
 
-  const ctx = document.getElementById("chart");
+});
 
-  if (chart) chart.destroy();
+const ctx = document.getElementById("chart");
 
-  chart = new Chart(ctx, {
+if (chart) chart.destroy();
 
-    type: "bar",
+chart = new Chart(ctx, {
 
-    data: {
-      labels,
-      datasets: [{
-        label: "Voti",
-        data: values,
-        backgroundColor: colors
-      }]
+type: "bar",
+
+data: {
+  labels,
+  datasets: [{
+    label: "Voti per progetto",
+    data: values,
+    backgroundColor: colors
+  }]
+},
+
+options: {
+
+  responsive: true,
+
+  plugins: {
+
+    legend: {
+      display: false
     },
 
-    options: {
+    tooltip: {
+      callbacks: {
+        label: function(context) {
 
-      responsive: true,
+          const r = classifica[context.dataIndex];
 
-      plugins: {
-
-        legend: {
-          display: false
-        },
-
-        tooltip: {
-          callbacks: {
-            title: function(context) {
-              return fullLabels[context[0].dataIndex];
-            }
-          }
-        }
-      },
-
-      scales: {
-
-        x: {
-          ticks: {
-            color: "white",
-            maxRotation: 90,
-            minRotation: 90
-          }
-        },
-
-        y: {
-          beginAtZero: true,
-          ticks: {
-            precision: 0,
-            color: "white"
-          }
+          return [
+            `Voti: ${r.votes}`,
+            r.percorso,
+            r.scuola,
+            r.titolo
+          ];
         }
       }
     }
-  });
+  },
+
+  scales: {
+
+    y: {
+      beginAtZero: true,
+      ticks: {
+        precision: 0
+      }
+    }
+  }
+}
+
+});
 }
 
 /* =========================
