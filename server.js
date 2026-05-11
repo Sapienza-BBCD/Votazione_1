@@ -13,7 +13,7 @@ const BASE_URL = process.env.BASE_URL || "https://votazione-1.onrender.com";
 const PARTICIPANTI = 350;
 const MAX_VOTES = 2;
 
-// ========================= STATE
+// ========================= STATO VOTAZIONE
 let votingState = "pre"; // pre | open | closed
 
 // ========================= MIDDLEWARE
@@ -27,9 +27,11 @@ const db = new sqlite3.Database("votes.db");
 // ========================= INIT DB
 db.serialize(() => {
 
+  // VOTI
   db.run(`
     CREATE TABLE IF NOT EXISTS votes(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id_progetto INTEGER,
       token TEXT,
       percorso TEXT,
       scuola TEXT,
@@ -38,12 +40,14 @@ db.serialize(() => {
     )
   `);
 
+  // TOKEN (QR FISSI)
   db.run(`
     CREATE TABLE IF NOT EXISTS tokens(
       token TEXT PRIMARY KEY
     )
   `);
 
+  // genera token solo una volta
   const stmt = db.prepare("INSERT OR IGNORE INTO tokens(token) VALUES(?)");
 
   for (let i = 1; i <= PARTICIPANTI; i++) {
@@ -67,7 +71,7 @@ app.get("/results-view", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "results-view.html"));
 });
 
-// ========================= STATUS VOTAZIONE
+// ========================= STATUS
 app.get("/status", (req, res) => {
   res.json({ stato: votingState });
 });
@@ -83,7 +87,6 @@ app.get("/close-vote", (req, res) => {
 });
 
 app.get("/reset-votes", (req, res) => {
-
   votingState = "pre";
 
   db.run("DELETE FROM votes", (err) => {
@@ -92,7 +95,7 @@ app.get("/reset-votes", (req, res) => {
   });
 });
 
-// ========================= VOTE STATUS
+// ========================= STATUS TOKEN
 app.get("/vote-status/:token", (req, res) => {
 
   const token = req.params.token;
@@ -113,10 +116,10 @@ app.get("/vote-status/:token", (req, res) => {
   );
 });
 
-// ========================= VOTE
+// ========================= VOTO
 app.post("/vote", (req, res) => {
 
-  const { token, percorso, scuola, titolo } = req.body;
+  const { token, id_progetto, percorso, scuola, titolo } = req.body;
 
   if (!token) return res.json({ error: "QR non valido" });
 
@@ -124,58 +127,70 @@ app.post("/vote", (req, res) => {
     return res.json({ error: "Votazione non attiva" });
   }
 
-  db.get("SELECT token FROM tokens WHERE token=?", [token], (err, row) => {
+  db.get(
+    "SELECT token FROM tokens WHERE token=?",
+    [token],
+    (err, row) => {
 
-    if (!row) return res.json({ error: "Token non valido" });
+      if (!row) return res.json({ error: "Token non valido" });
 
-    db.get(
-      "SELECT 1 FROM votes WHERE token=? AND percorso=? AND scuola=?",
-      [token, percorso, scuola],
-      (err2, dup) => {
+      // duplicato stesso progetto
+      db.get(
+        "SELECT 1 FROM votes WHERE token=? AND percorso=? AND scuola=? AND titolo=?",
+        [token, percorso, scuola, titolo],
+        (err2, dup) => {
 
-        if (dup) return res.json({ error: "Già votato questo progetto" });
-
-        db.get(
-          "SELECT COUNT(*) AS count FROM votes WHERE token=?",
-          [token],
-          (err3, countRow) => {
-
-            if ((countRow?.count || 0) >= MAX_VOTES) {
-              return res.json({ error: "Hai esaurito i voti" });
-            }
-
-            db.all(
-              "SELECT percorso FROM votes WHERE token=?",
-              [token],
-              (err4, rows) => {
-
-                const nuova = getDisciplina(percorso);
-                const gia = (rows || []).map(r => getDisciplina(r.percorso));
-
-                if (gia.includes(nuova)) {
-                  return res.json({ error: "Hai già votato questa disciplina" });
-                }
-
-                db.run(
-                  "INSERT INTO votes(token,percorso,scuola,titolo) VALUES(?,?,?,?)",
-                  [token, percorso, scuola, titolo],
-                  (err5) => {
-
-                    if (err5) return res.json({ error: "Errore salvataggio" });
-
-                    res.json({ success: true });
-                  }
-                );
-              }
-            );
+          if (dup) {
+            return res.json({ error: "Già votato questo progetto" });
           }
-        );
-      }
-    );
-  });
+
+          // limite voti
+          db.get(
+            "SELECT COUNT(*) AS count FROM votes WHERE token=?",
+            [token],
+            (err3, countRow) => {
+
+              if ((countRow?.count || 0) >= MAX_VOTES) {
+                return res.json({ error: "Hai esaurito i voti" });
+              }
+
+              // stessa disciplina
+              db.all(
+                "SELECT percorso FROM votes WHERE token=?",
+                [token],
+                (err4, rows) => {
+
+                  const nuova = getDisciplina(percorso);
+                  const gia = (rows || []).map(r => getDisciplina(r.percorso));
+
+                  if (gia.includes(nuova)) {
+                    return res.json({ error: "Hai già votato questa disciplina" });
+                  }
+
+                  // INSERT VOTO
+                  db.run(
+                    "INSERT INTO votes(id_progetto,token,percorso,scuola,titolo) VALUES(?,?,?,?,?)",
+                    [id_progetto, token, percorso, scuola, titolo],
+                    (err5) => {
+
+                      if (err5) {
+                        return res.json({ error: "Errore salvataggio" });
+                      }
+
+                      res.json({ success: true });
+                    }
+                  );
+                }
+              );
+            }
+          );
+        }
+      );
+    }
+  );
 });
 
-// ========================= RESULTS (CORRETTO + CLASSIFICA)
+// ========================= RESULTS + CLASSIFICA
 app.get("/results-data", (req, res) => {
 
   db.all(`
@@ -188,14 +203,8 @@ app.get("/results-data", (req, res) => {
 
     const risultati = rows || [];
 
-    const classificaMap = {};
-
-    for (const r of risultati) {
-      classificaMap[r.percorso] = (classificaMap[r.percorso] || 0) + r.votes;
-    }
-
-    const classifica = Object.entries(classificaMap)
-      .map(([percorso, votes]) => ({ percorso, votes }))
+    // classifica progetti
+    const classifica = [...risultati]
       .sort((a, b) => b.votes - a.votes);
 
     const totale = risultati.reduce((s, r) => s + r.votes, 0);
@@ -208,7 +217,7 @@ app.get("/results-data", (req, res) => {
   });
 });
 
-// ========================= DEBUG VOTES
+// ========================= DEBUG
 app.get("/debug-votes", (req, res) => {
   db.all("SELECT * FROM votes", (err, rows) => {
     if (err) return res.json({ error: err.message });
@@ -216,7 +225,6 @@ app.get("/debug-votes", (req, res) => {
   });
 });
 
-// ========================= DEBUG TOKENS
 app.get("/debug-tokens", (req, res) => {
   db.all("SELECT * FROM tokens", (err, rows) => {
     if (err) return res.json({ error: err.message });
@@ -224,7 +232,7 @@ app.get("/debug-tokens", (req, res) => {
   });
 });
 
-// ========================= QR PRINT
+// ========================= QR PDF
 app.get("/print-qrs", (req, res) => {
 
   const doc = new PDFDocument({ size: "A4", margin: 40 });

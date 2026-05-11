@@ -1,54 +1,37 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>Dati Votazione LAB2GO</title>
-</head>
-<body>
-<script>
-async function fetchResults() {
-    const res = await fetch("/results");
-    const data = await res.json();
+app.get("/results-data", (req, res) => {
 
-    // Definizione percorsi e scuole
-    const percorsi = {
-        "Botanica": ["Pietrobono", "Galilei", "Morgani", "Ferro"],
-        "Biologia Animale": ["Socrate", "Bottardi", "Keynes"],
-        "Chimica": ["Mamiani", "Pertini Falcone", "Cavour", "Garibaldi", "Torricelli", "Montessori"],
-        "Fisica": ["Francesco d'Assisi", "Cornelio Tacito", "Lorenzo Rocci", "Vittoria Colonna", "Sandro Pertini", "Gaetano De Santis", "Nomentano", "Righi", "Lucrezio Caro", "Vian", "Polo Liceale Alighieri", "Giulio Cesare", "Albertelli"],
-        "Progetto Musei": ["Massimo", "Vittoria Colonna", "Pertini"],
-        "Scienze della Terra": ["Labriola", "Galileo Galilei", "Levi Ciita"]
-    };
+  db.all(`
+    SELECT percorso, titolo, COUNT(*) as votes
+    FROM votes
+    GROUP BY percorso, titolo
+  `, (err, rows) => {
 
-    const results = {};
-
-    // Inizializza struttura risultati
-    for (const percorso in percorsi) {
-        results[percorso] = {};
-        percorsi[percorso].forEach(scuola => {
-            results[percorso][scuola] = 0;
-        });
+    if (err) {
+      return res.json({ error: err.message });
     }
 
-    // Aggrega voti
-    data.forEach(vote => {
-        const choices = vote.choice.split(", ").map(c => c.trim());
-        choices.forEach(c => {
-            for (const percorso in percorsi) {
-                if (percorsi[percorso].includes(c)) {
-                    results[percorso][c]++;
-                }
-            }
-        });
-    });
+    const result = {};
 
-    return results;
-}
+    for (const r of rows) {
 
-// Espone dati JSON
-fetchResults().then(results => {
-    document.body.innerHTML = `<pre>${JSON.stringify(results, null, 2)}</pre>`;
+      // disciplina = parte prima del " - "
+      const disciplina = r.percorso.split(" - ")[0].trim();
+
+      if (!result[disciplina]) {
+        result[disciplina] = [];
+      }
+
+      result[disciplina].push({
+        id: r.titolo,   // puoi anche rinominarlo in "progetto"
+        votes: r.votes
+      });
+    }
+
+    // ordina ogni disciplina per voti decrescenti
+    for (const d in result) {
+      result[d].sort((a, b) => b.votes - a.votes);
+    }
+
+    res.json(result);
+  });
 });
-</script>
-</body>
-</html>
