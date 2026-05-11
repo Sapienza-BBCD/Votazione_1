@@ -108,13 +108,26 @@ app.get("/close-vote", (req, res) => {
   setStato("closed", () => res.json({ ok: true }));
 });
 
-app.get("/reset-vote", (req, res) => {
-  // ⚠️ NON cancella voti (puoi decidere)
+app.get("/reset-vote-state", (req, res) => {
+
   setStato("pre", () => {
-    db.run("DELETE FROM votes");
     res.json({ ok: true });
   });
+
 });
+
+app.get("/reset-votes", (req, res) => {
+
+  setStato("pre", () => {
+
+    db.run("DELETE FROM votes");
+
+    res.json({ ok: true });
+
+  });
+
+});
+  
 
 // ========================= STATUS UTENTE
 app.get("/vote-status/:token", (req, res) => {
@@ -173,7 +186,7 @@ app.post("/vote", (req, res) => {
               [token],
               (err3, countRow) => {
 
-                if (countRow.count >= MAX_VOTES) {
+                if ((countRow?.count ?? 0) >= MAX_VOTES) {
                   return res.json({ error: "Hai esaurito i voti" });
                 }
 
@@ -184,7 +197,8 @@ app.post("/vote", (req, res) => {
                   (err4, rows) => {
 
                     const nuova = getDisciplina(percorso);
-                    const gia = rows.map(r => getDisciplina(r.percorso));
+                    const gia = (rows || []).map(r =>getDisciplina(r.percorso)
+                    );
 
                     if (gia.includes(nuova)) {
                       return res.json({ error: "Hai già votato questa disciplina" });
@@ -283,8 +297,23 @@ app.get("/print-qrs", (req, res) => {
     doc.end();
   });
 });
+// =========================
+// STATUS VOTAZIONE
+// =========================
+app.get("/status", (req, res) => {
 
-// ========================= START
+  getStato((stato) => {
+
+    res.json({
+      stato
+    });
+
+  });
+
+});
+// =========================
+// START
+// ========================= 
 app.listen(PORT, () => {
   console.log("Server attivo su porta", PORT);
 });

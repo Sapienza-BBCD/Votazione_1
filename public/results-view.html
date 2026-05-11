@@ -345,9 +345,28 @@ async function update() {
 
   try {
 
+    // 🔥 controlla stato votazione
+    const statoRes = await fetch("/status?t=" + Date.now());
+    const statoData = await statoRes.json();
+
+    // 🔴 se chiusa → stop refresh
+    if (statoData.stato === "closed") {
+
+      clearInterval(intervalId);
+
+      document.getElementById("liveStatus").innerHTML =
+        `<span class="closed">● VOTAZIONE CHIUSA</span>`;
+
+      return;
+    }
+
+    // 🟢 live
+    document.getElementById("liveStatus").innerHTML =
+      `<span class="live">● LIVE</span>`;
+
+    // risultati
     const data = await fetchResults();
 
-    /* 🔥 aggiorna SOLO se cambia qualcosa */
     const hash = JSON.stringify(data);
 
     if (hash === lastHash) {
@@ -359,10 +378,10 @@ async function update() {
     renderResults(data);
 
   } catch(err) {
+
     console.error(err);
   }
 }
-
 /* =========================
    START
 ========================= */
