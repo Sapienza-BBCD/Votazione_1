@@ -383,13 +383,55 @@ async function update() {
   }
 }
 /* =========================
+   STATUS CHECK
+========================= */
+
+async function checkStatus() {
+
+  try {
+
+    const res = await fetch("/status?t=" + Date.now());
+
+    const data = await res.json();
+
+    // 🔴 VOTAZIONE CHIUSA
+    if (data.stato === "closed") {
+
+      clearInterval(intervalId);
+
+      document.getElementById("liveStatus").innerHTML =
+        `<span class="closed">● VOTAZIONE CHIUSA</span>`;
+
+      return;
+    }
+
+    // 🟢 LIVE
+    document.getElementById("liveStatus").innerHTML =
+      `<span class="live">● LIVE</span>`;
+
+  } catch(err) {
+    console.error(err);
+  }
+}
+
+/* =========================
+   UPDATE COMPLETO
+========================= */
+
+async function liveUpdate() {
+
+  await checkStatus();
+
+  await update();
+}
+
+/* =========================
    START
 ========================= */
 
-update();
+Update();
 
-/* 🔥 aggiornamento live NON invasivo */
-intervalId = setInterval(update, 3000);
+intervalId = setInterval(Update, 3000);
 
 </script>
 
