@@ -64,7 +64,7 @@ th {
 
 <section>
   <h2>🏆 Classifica</h2>
-  <canvas id="chart"></canvas>
+  <div id="chartsContainer"></div>
 </section>
 
 <section>
@@ -195,86 +195,93 @@ async function loadChart() {
 
   const risultati = data.risultati || [];
 
-  // X = tutti gli ID unici
-  const labels = risultati.map(r => `ID ${r.id_progetto}`);
+  const container = document.getElementById("chartsContainer");
+  container.innerHTML = "";
 
-  const datasets = [];
+  // raggruppa per disciplina
+  const grouped = {};
 
-  const colori = {
-    "Esperimento": "#3B82F6",
-    "Poster": "#10B981",
-    "Talk": "#F59E0B"
-  };
+  risultati.forEach(r => {
 
-  // crea 3 dataset separati (uno per tipo)
-  ["Esperimento", "Poster", "Talk"].forEach(tipo => {
+    const [disciplina, tipo] = r.percorso.split(" - ");
 
-    datasets.push({
-      label: tipo,
-      data: risultati
-        .filter(r => r.percorso.includes(tipo))
-        .map(r => r.votes),
-      backgroundColor: colori[tipo]
+    if (!grouped[disciplina]) grouped[disciplina] = [];
+
+    grouped[disciplina].push({
+      ...r,
+      tipo
+    });
+  });
+
+  // crea grafico per disciplina
+  Object.keys(grouped).forEach(disciplina => {
+
+    const section = document.createElement("section");
+
+    const title = document.createElement("h2");
+    title.textContent = disciplina;
+
+    const canvas = document.createElement("canvas");
+
+    section.appendChild(title);
+    section.appendChild(canvas);
+    container.appendChild(section);
+
+    const items = grouped[disciplina];
+
+    // ORDINA QUI (CORRETTO)
+
+
+    const labels = items.map(i =>
+      `ID ${i.id_progetto} (${i.tipo})`
+    );
+
+    const values = items.map(i => i.votes);
+
+    const colors = items.map(i => {
+
+      if (i.tipo.includes("Esperimento")) return "#3B82F6";
+      if (i.tipo.includes("Poster")) return "#10B981";
+      if (i.tipo.includes("Talk")) return "#F59E0B";
+
+      return "#94A3B8";
+    });
+
+    new Chart(canvas.getContext("2d"), {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [{
+          label: `Voti - ${disciplina}`,
+          data: values,
+          backgroundColor: colors
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                const i = items[ctx.dataIndex];
+                return [
+                  `Voti: ${i.votes}`,
+                  i.percorso,
+                  i.scuola,
+                  i.titolo
+                ];
+              }
+            }
+          }
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { precision: 0 } }
+        }
+      }
     });
 
   });
-
-const ctx = document.getElementById("chart");
-
-if (chart) chart.destroy();
-
-chart = new Chart(ctx, {
-
-type: "bar",
-
-data: {
-  labels,
-  datasets: [{
-    label: "Voti per progetto",
-    data: values,
-    backgroundColor: colors
-  }]
-},
-
-options: {
-
-  responsive: true,
-
-  plugins: {
-
-    legend: {
-      display: false
-    },
-
-    tooltip: {
-      callbacks: {
-        label: function(context) {
-
-          const r = classifica[context.dataIndex];
-
-          return [
-            `Voti: ${r.votes}`,
-            r.percorso,
-            r.scuola,
-            r.titolo
-          ];
-        }
-      }
-    }
-  },
-
-  scales: {
-
-    y: {
-      beginAtZero: true,
-      ticks: {
-        precision: 0
-      }
-    }
-  }
-}
-
-});
 }
 
 /* =========================
