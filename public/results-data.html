@@ -1,35 +1,43 @@
 app.get("/results-data", (req, res) => {
 
   db.all(`
-    SELECT percorso, titolo, COUNT(*) as votes
+    SELECT 
+      id_progetto,
+      percorso,
+      titolo,
+      COUNT(*) as votes
     FROM votes
-    GROUP BY percorso, titolo
+    GROUP BY id_progetto
   `, (err, rows) => {
 
-    if (err) {
-      return res.json({ error: err.message });
-    }
+    if (err) return res.json({ error: err.message });
 
     const result = {};
 
     for (const r of rows) {
 
-      // disciplina = parte prima del " - "
-      const disciplina = r.percorso.split(" - ")[0].trim();
+      const percorso = r.percorso.split(" - ")[0].trim();
 
-      if (!result[disciplina]) {
-        result[disciplina] = [];
-      }
+      const tipo = r.percorso.includes("Esperimento")
+        ? "Esperimento"
+        : r.percorso.includes("Poster")
+          ? "Poster"
+          : "Talk";
 
-      result[disciplina].push({
-        id: r.titolo,   // puoi anche rinominarlo in "progetto"
+      if (!result[percorso]) result[percorso] = {};
+      if (!result[percorso][tipo]) result[percorso][tipo] = [];
+
+      result[percorso][tipo].push({
+        id: r.id_progetto,
         votes: r.votes
       });
     }
 
-    // ordina ogni disciplina per voti decrescenti
-    for (const d in result) {
-      result[d].sort((a, b) => b.votes - a.votes);
+    // ordina per voti
+    for (const p in result) {
+      for (const t in result[p]) {
+        result[p][t].sort((a, b) => b.votes - a.votes);
+      }
     }
 
     res.json(result);

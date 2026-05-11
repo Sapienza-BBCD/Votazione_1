@@ -194,27 +194,27 @@ app.post("/vote", (req, res) => {
 app.get("/results-data", (req, res) => {
 
   db.all(`
-    SELECT percorso, scuola, titolo, COUNT(*) as votes
+    SELECT
+      id_progetto,
+      percorso,
+      scuola,
+      titolo,
+      COUNT(*) as votes
     FROM votes
-    GROUP BY percorso, scuola, titolo
+    GROUP BY id_progetto, percorso, scuola, titolo
+    ORDER BY votes DESC
   `, (err, rows) => {
 
-    if (err) return res.json({ error: err.message });
-
-    const risultati = rows || [];
-
-    // classifica progetti
-    const classifica = [...risultati]
-      .sort((a, b) => b.votes - a.votes);
-
-    const totale = risultati.reduce((s, r) => s + r.votes, 0);
+    if (err) {
+      return res.json({ error: err.message });
+    }
 
     res.json({
-      totale,
-      risultati,
-      classifica
+      risultati: rows || []
     });
+
   });
+
 });
 
 // ========================= DEBUG
