@@ -186,111 +186,125 @@ async function loadTokens() {
 }
 
 /* =========================
-   CLASSIFICA AVANZATA
+   CLASSIFICA DISCIPLINE
 ========================= */
 async function loadCharts() {
-  // 1. Scarica i dati dal server
-  const res = await fetch("/api/classifica-discipline"); 
+
+  const res = await fetch("/api/classifica-discipline");
   const datiDiscipline = await res.json();
 
-  // 2. Prepara il contenitore HTML per il grafico
-  const container = document.getElementById("chartscontainer");
-  container.innerHTML = '<canvas id="votiChart" style="max-height: 500px;"></canvas>';
+  const container = document.getElementById("chartsContainer");
 
-  // 3. Estrai i nomi delle 6 discipline per l'asse X
-  const etichetteDiscipline = datiDiscipline.map(d => d.disciplina);
+  container.innerHTML =
+    '<canvas id="votiChart" style="max-height:600px;"></canvas>';
 
-  // 4. Mappa i colori in base al tipo di opzione di voto
+  const etichetteDiscipline =
+    datiDiscipline.map(d => d.disciplina);
+
   const coloriOpzioni = {
-    "Esperienza": "#3b82f6", // Blu
-    "Poster": "#eab308",     // Giallo
-    "Talk": "#ec4899"        // Rosa
+    "Esperimento": "#3b82f6",
+    "Poster": "#10b981",
+    "Talk": "#f59e0b"
   };
 
-  // 5. Costruisci i dataset. Ogni progetto diventa una "barra" indipendente
   const datasets = [];
 
   datiDiscipline.forEach((disc, indiceDisciplina) => {
+
     disc.progetti.forEach(progetto => {
-      
-      // Crea un array di voti lungo quanto le discipline (6 elementi) pieno di zeri
-      const datiVoti = new Array(datiDiscipline.length).fill(0);
-      
-      // Inserisci i voti del progetto solo nella posizione della sua disciplina
+
+      const datiVoti =
+        new Array(datiDiscipline.length).fill(0);
+
       datiVoti[indiceDisciplina] = progetto.voti;
 
-      // Aggiungi il progetto come serie di dati nel grafico
       datasets.push({
-        label: `ID: ${progetto.id} (${progetto.tipo})`,
+        label: `ID ${progetto.id} (${progetto.tipo})`,
         data: datiVoti,
-        backgroundColor: coloriOpzioni[progetto.tipo] || "#94a3b8",
+        backgroundColor:
+          coloriOpzioni[progetto.tipo] || "#94a3b8",
         borderRadius: 4,
-        categoryPercentage: 0.8, // Gestisce lo spazio tra i gruppi di discipline
-        barPercentage: 0.9      // Gestisce lo spessore delle barre dei progetti
+        categoryPercentage: 0.8,
+        barPercentage: 0.9
       });
+
     });
+
   });
 
-  // 6. Inizializza il grafico Chart.js
-  const ctx = document.getElementById('votiChart').getContext('2d');
-  
-  if (chart) chart.destroy(); // Distruggi grafico precedente se esiste un refresh automatico
+  const ctx =
+    document.getElementById("votiChart").getContext("2d");
+
+  if (chart) chart.destroy();
 
   chart = new Chart(ctx, {
-    type: 'bar',
+
+    type: "bar",
+
     data: {
-      labels: etichetteDiscipline, // Asse X: Le 6 discipline
-      datasets: datasets           // Le colonne dei singoli progetti
+      labels: etichetteDiscipline,
+      datasets: datasets
     },
+
     options: {
+
       responsive: true,
+
       plugins: {
+
         legend: {
-          position: 'top',
-          labels: { color: '#ffffff' } // Testo legenda bianco per tema dark
+          position: "top",
+          labels: {
+            color: "#ffffff"
+          }
         },
+
         tooltip: {
-          callbacks: {
-            // Mostra solo i progetti che hanno effettivamente voti in quella colonna
-            filter: function(tooltipItem) {
-              return tooltipItem.raw > 0;
-            }
+          filter: function(item) {
+            return item.raw > 0;
           }
         }
       },
+
       scales: {
+
         x: {
-          stacked: false, // Mantieni false per avere le barre affiancate
-          ticks: { color: '#cbd5e1' },
-          grid: { color: '#334155' }
+          ticks: {
+            color: "#cbd5e1"
+          },
+          grid: {
+            color: "#334155"
+          }
         },
+
         y: {
           beginAtZero: true,
-          ticks: { color: '#cbd5e1' },
-          grid: { color: '#334155' }
+          ticks: {
+            color: "#cbd5e1",
+            precision: 0
+          },
+          grid: {
+            color: "#334155"
+          }
         }
       }
     }
   });
 }
 
-// Avvia la funzione al caricamento della pagina
-window.onload = function() {
-  loadstatus();
-  loadvotes();
-  loadCharts(); 
-};
 /* =========================
    INIT + REFRESH
 ========================= */
 async function loadAll() {
+
   await loadStatus();
   await loadVotes();
   await loadTokens();
-  await loadChart();
+  await loadCharts();
 }
 
 loadAll();
+
 setInterval(loadAll, 5000);
 
 </script>
