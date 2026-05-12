@@ -287,85 +287,37 @@ app.get("/debug-tokens", (req, res) => {
   });
 });
 
-// ========================= QR PDF
-app.get("/print-qrs", (req, res) => {
+// ========================= QR PDF app.get("/print-qrs", (req, res) => {
+    const doc = new PDFDocument({ size: "A4", margin: 40 });
 
-  const doc = new PDFDocument({
-    size: "A4",
-    margin: 0
-  });
-
-  res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", "inline; filename=qrs.pdf");
-
-  doc.pipe(res);
-
-  const mm = v => v * 2.83465;
-
-  db.all("SELECT token FROM tokens", async (err, rows) => {
-
-    if (err || !rows) return doc.end();
-
-    const pageW = doc.page.width;
-    const pageH = doc.page.height;
-
-    const margin = mm(15);
-    const qrSize = mm(35);
-    const gapX = mm(8);
-    const gapY = mm(12);
-
-    const cols = 4;
-    const rowsPerPage = 5;
-
-    // 🔥 GENERAZIONE QR PARALLELA (FIX VERO DEL LAG)
-    const qrList = await Promise.all(
-      rows.map(r => {
-        const url = `${BASE_URL}/?token=${r.token}`;
-
-        return QRCode.toDataURL(url, {
-          margin: 1,
-          width: 300   // 🔥 più leggero e veloce
-        }).then(qr => ({
-          token: r.token,
-          img: Buffer.from(qr.split(",")[1], "base64")
-        }));
-      })
-    );
-
-    let index = 0;
-
-    for (const item of qrList) {
-
-      const col = index % cols;
-      const row = Math.floor(index / cols) % rowsPerPage;
-
-      const x = margin + col * (qrSize + gapX);
-      const y = margin + row * (qrSize + gapY);
-
-      doc.image(item.img, x, y, {
-        width: qrSize,
-        height: qrSize
-      });
-
-      doc.fontSize(7);
-      doc.text(item.token, x, y + qrSize + mm(2), {
-        width: qrSize,
-        align: "center"
-      });
-
-      index++;
-
-      if (index % (cols * rowsPerPage) === 0 && index < qrList.length) {
-        drawCropMarks(doc, pageW, pageH, margin);
-        doc.addPage();
-      }
-    }
-
-    drawCropMarks(doc, pageW, pageH, margin);
-
-    doc.end();
-  });
-});
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "inline; filename=qrs.pdf");
+    doc.pipe(res);
+    db.all("SELECT token FROM tokens", async (err, rows) => {
+        if (err || !rows) return doc.end();
+        let x = 50;
+        let y = 50;
+        let i = 0;
+        for (const r of rows) {
+            const url = ${BASE_URL}/?token=${r.token};
+            const qr = await QRCode.toDataURL(url);
+            const img = Buffer.from(qr.split(",")[1], "base64");
+            doc.image(img, x, y, { width: 80 });
+            doc.text(r.token, x, y + 85);
+            x += 100;
+            i++;
+            if (i % 5 === 0) {
+                x = 50; y += 120;
+                }
+            if (i % 20 === 0) {
+                doc.addPage();
+                x = 50;
+                y = 50;
+                }
+            }
+        doc.end();
+        });
+    });
 
 // ========================= START
 app.listen(PORT, () => {
