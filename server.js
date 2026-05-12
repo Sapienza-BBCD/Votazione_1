@@ -289,44 +289,61 @@ app.get("/debug-tokens", (req, res) => {
 
 // ========================= QR PDF
 app.get("/print-qrs", (req, res) => {
-
-  const doc = new PDFDocument({ size: "A4", margin: 40 });
+  const doc = new PDFDocument({ size: "A4", margin: 0 }); // Margini gestiti manualmente
 
   res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", "inline; filename=qrs.pdf");
-
+  res.setHeader("Content-Disposition", "inline; filename=qrs_professionali.pdf");
   doc.pipe(res);
 
-  db.all("SELECT token FROM tokens", async (err, rows) => {
-
+  db.all("SELECT token FROM tokens ORDER BY token ASC", async (err, rows) => {
     if (err || !rows) return doc.end();
 
-    let x = 50;
-    let y = 50;
-    let i = 0;
+    // --- CONFIGURAZIONE GRIGLIA ---
+    const cols = 4;
+    const rowsPerPage = 6;
+    const cellWidth = 130;  // circa 4.6 cm
+    const cellHeight = 120; // circa 4.2 cm
+    const qrSize = 80;
+    const startX = 45;      // Centratura orizzontale
+    const startY = 50;      // Centratura verticale
 
-    for (const r of rows) {
+    for (let i = 0; i < rows.length; i++) {
+      const col = i % cols;
+      const row = Math.floor(i / cols) % rowsPerPage;
 
-      const url = `${BASE_URL}/?token=${r.token}`;
+      if (i > 0 && i % (cols * rowsPerPage) === 0) doc.addPage();
+
+      const x = startX + col * cellWidth;
+      const y = startY + row * cellHeight;
+
+      // Generazione QR
+      const url = `${BASE_URL}/?token=${rows[i].token}`;
       const qr = await QRCode.toDataURL(url);
       const img = Buffer.from(qr.split(",")[1], "base64");
 
-      doc.image(img, x, y, { width: 80 });
-      doc.text(r.token, x, y + 85);
+      // 1. Stampa QR Code (centrato nella cella)
+      doc.image(img, x + (cellWidth - qrSize) / 2, y + 10, { width: qrSize });
 
-      x += 100;
-      i++;
+      // 2. Testo Token
+      doc.fontSize(8).fillColor("black")
+         .text(rows[i].token, x, y + qrSize + 15, { width: cellWidth, align: "center" });
 
-      if (i % 5 === 0) {
-        x = 50;
-        y += 120;
-      }
+      // 3. LINEE DI TAGLIO (Crocini)
+      doc.lineWidth(0.2).strokeColor("#CCCCCC"); // Colore grigio chiaro per non disturbare
+      
+      // Angolo alto-sx
+      doc.moveTo(x, y).lineTo(x + 10, y).stroke();
+      doc.moveTo(x, y).lineTo(x, y + 10).stroke();
+      
+      // Angolo basso-dx
+      doc.moveTo(x + cellWidth, y + cellHeight).lineTo(x + cellWidth - 10, y + cellHeight).stroke();
+      doc.moveTo(x + cellWidth, y + cellHeight).lineTo(x + cellWidth, y + cellHeight - 10).stroke();
 
-      if (i % 20 === 0) {
-        doc.addPage();
-        x = 50;
-        y = 50;
-      }
+      // 4. CORNICE LEGGERA (Opzionale, serve come guida visiva)
+      doc.rect(x, y, cellWidth, cellHeight)
+         .dash(2, { space: 2 })
+         .stroke();
+      doc.undash();
     }
 
     doc.end();
