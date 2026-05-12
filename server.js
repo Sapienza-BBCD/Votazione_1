@@ -288,57 +288,11 @@ app.get("/debug-tokens", (req, res) => {
 });
 
 // ========================= QR PDF
-const PDFDocument = require("pdfkit");
-const QRCode = require("qrcode");
-
-// converte mm → punti PDF
-const mm = v => v * 2.83465;
-
-// crop marks
-function drawCropMarks(doc, pageWidth, pageHeight, margin) {
-
-  const len = mm(4); // lunghezza segni
-
-  doc.save();
-  doc.lineWidth(0.5);
-
-  // TOP LEFT
-  doc.moveTo(margin - len, margin)
-     .lineTo(margin, margin).stroke();
-
-  doc.moveTo(margin, margin - len)
-     .lineTo(margin, margin).stroke();
-
-  // TOP RIGHT
-  doc.moveTo(pageWidth - margin + len, margin)
-     .lineTo(pageWidth - margin, margin).stroke();
-
-  doc.moveTo(pageWidth - margin, margin - len)
-     .lineTo(pageWidth - margin, margin).stroke();
-
-  // BOTTOM LEFT
-  doc.moveTo(margin - len, pageHeight - margin)
-     .lineTo(margin, pageHeight - margin).stroke();
-
-  doc.moveTo(margin, pageHeight - margin + len)
-     .lineTo(margin, pageHeight - margin).stroke();
-
-  // BOTTOM RIGHT
-  doc.moveTo(pageWidth - margin + len, pageHeight - margin)
-     .lineTo(pageWidth - margin, pageHeight - margin).stroke();
-
-  doc.moveTo(pageWidth - margin, pageHeight - margin + len)
-     .lineTo(pageWidth - margin, pageHeight - margin).stroke();
-
-  doc.restore();
-}
-
-// ROUTE
 app.get("/print-qrs", (req, res) => {
 
   const doc = new PDFDocument({
     size: "A4",
-    margin: 0 // importante: gestiamo tutto noi
+    margin: 0
   });
 
   res.setHeader("Content-Type", "application/pdf");
@@ -350,13 +304,13 @@ app.get("/print-qrs", (req, res) => {
 
     if (err || !rows) return doc.end();
 
-    // ====== LAYOUT STAMPA ======
     const pageW = doc.page.width;
     const pageH = doc.page.height;
 
-    const margin = mm(15);
+    const mm = v => v * 2.83465;
 
-    const qrSize = mm(35);     // dimensione QR
+    const margin = mm(15);
+    const qrSize = mm(35);
     const gapX = mm(8);
     const gapY = mm(12);
 
@@ -370,7 +324,6 @@ app.get("/print-qrs", (req, res) => {
       const col = index % cols;
       const row = Math.floor(index / cols) % rowsPerPage;
 
-      // coordinate QR
       const x = margin + col * (qrSize + gapX);
       const y = margin + row * (qrSize + gapY);
 
@@ -378,18 +331,16 @@ app.get("/print-qrs", (req, res) => {
 
       const qr = await QRCode.toDataURL(url, {
         margin: 1,
-        width: 600 // alta qualità stampa
+        width: 600
       });
 
       const img = Buffer.from(qr.split(",")[1], "base64");
 
-      // QR
       doc.image(img, x, y, {
         width: qrSize,
         height: qrSize
       });
 
-      // testo sotto QR
       doc.fontSize(7);
       doc.text(r.token, x, y + qrSize + mm(2), {
         width: qrSize,
@@ -398,17 +349,13 @@ app.get("/print-qrs", (req, res) => {
 
       index++;
 
-      // nuova pagina
       if (index % (cols * rowsPerPage) === 0 && index < rows.length) {
 
-        // crop marks pagina corrente
         drawCropMarks(doc, pageW, pageH, margin);
-
         doc.addPage();
       }
     }
 
-    // crop marks ultima pagina
     drawCropMarks(doc, pageW, pageH, margin);
 
     doc.end();
