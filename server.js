@@ -287,37 +287,51 @@ app.get("/debug-tokens", (req, res) => {
   });
 });
 
-// ========================= QR PDF app.get("/print-qrs", (req, res) => {
-    const doc = new PDFDocument({ size: "A4", margin: 40 });
+// ========================= QR PDF
+app.get("/print-qrs", (req, res) => {
 
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", "inline; filename=qrs.pdf");
-    doc.pipe(res);
-    db.all("SELECT token FROM tokens", async (err, rows) => {
-        if (err || !rows) return doc.end();
-        let x = 50;
-        let y = 50;
-        let i = 0;
-        for (const r of rows) {
-            const url = ${BASE_URL}/?token=${r.token};
-            const qr = await QRCode.toDataURL(url);
-            const img = Buffer.from(qr.split(",")[1], "base64");
-            doc.image(img, x, y, { width: 80 });
-            doc.text(r.token, x, y + 85);
-            x += 100;
-            i++;
-            if (i % 5 === 0) {
-                x = 50; y += 120;
-                }
-            if (i % 20 === 0) {
-                doc.addPage();
-                x = 50;
-                y = 50;
-                }
-            }
-        doc.end();
-        });
-    });
+  const doc = new PDFDocument({ size: "A4", margin: 40 });
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", "inline; filename=qrs.pdf");
+
+  doc.pipe(res);
+
+  db.all("SELECT token FROM tokens", async (err, rows) => {
+
+    if (err || !rows) return doc.end();
+
+    let x = 50;
+    let y = 50;
+    let i = 0;
+
+    for (const r of rows) {
+
+      const url = `${BASE_URL}/?token=${r.token}`;
+      const qr = await QRCode.toDataURL(url);
+      const img = Buffer.from(qr.split(",")[1], "base64");
+
+      doc.image(img, x, y, { width: 80 });
+      doc.text(r.token, x, y + 85);
+
+      x += 100;
+      i++;
+
+      if (i % 5 === 0) {
+        x = 50;
+        y += 120;
+      }
+
+      if (i % 20 === 0) {
+        doc.addPage();
+        x = 50;
+        y = 50;
+      }
+    }
+
+    doc.end();
+  });
+});
 
 // ========================= START
 app.listen(PORT, () => {
