@@ -217,60 +217,7 @@ app.get("/results-data", (req, res) => {
 
 });
 
-app.get("/api/classifica-discipline", (req, res) => {
 
-  db.all(`
-    SELECT
-      id_progetto,
-      percorso,
-      scuola,
-      titolo,
-      COUNT(*) as votes
-    FROM votes
-    GROUP BY id_progetto, percorso, scuola, titolo
-    ORDER BY votes DESC
-  `, (err, rows) => {
-
-    if (err) {
-      return res.json({ error: err.message });
-    }
-
-    // raggruppa per disciplina
-    const grouped = {};
-
-    rows.forEach(r => {
-
-      const parts = r.percorso.split(" - ");
-
-      const disciplina = parts[0] || "Altro";
-      const tipo = parts[1] || "Altro";
-
-      if (!grouped[disciplina]) {
-        grouped[disciplina] = [];
-      }
-
-      grouped[disciplina].push({
-        id: r.id_progetto,
-        tipo,
-        voti: r.votes,
-        scuola: r.scuola,
-        titolo: r.titolo,
-        percorso: r.percorso
-      });
-
-    });
-
-    // array finale
-    const result = Object.keys(grouped).map(disciplina => ({
-      disciplina,
-      progetti: grouped[disciplina]
-    }));
-
-    res.json(result);
-
-  });
-
-});
 
 // ========================= DEBUG
 app.get("/debug-votes", (req, res) => {
