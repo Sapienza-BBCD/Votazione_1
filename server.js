@@ -51,7 +51,7 @@ db.serialize(() => {
   const stmt = db.prepare("INSERT OR IGNORE INTO tokens(token) VALUES(?)");
 
   for (let i = 1; i <= PARTICIPANTI; i++) {
-    stmt.run(`LAB2GO-${i}`);
+    stmt.run(`LAB2GO-${String(i).padStart(3, "0")}`);
   }
 
   stmt.finalize();
@@ -347,6 +347,31 @@ app.get("/print-qrs", (req, res) => {
     }
 
     doc.end();
+  });
+});
+// ========================= RESET TOKENS
+app.get("/reset-tokens", (req, res) => {
+
+  db.run("DELETE FROM tokens", err => {
+
+    if (err) {
+      return res.json({ error: err.message });
+    }
+
+    const stmt = db.prepare(
+      "INSERT INTO tokens(token) VALUES(?)"
+    );
+
+    for (let i = 1; i <= PARTICIPANTI; i++) {
+
+      stmt.run(
+        `LAB2GO-${String(i).padStart(3, "0")}`
+      );
+    }
+
+    stmt.finalize();
+
+    res.json({ ok: true });
   });
 });
 
