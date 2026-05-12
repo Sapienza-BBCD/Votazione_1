@@ -288,49 +288,80 @@ app.get("/debug-tokens", (req, res) => {
 });
 
 // ========================= QR PDF
-app.get("/print-qrs", (req, res) => {
+app.get("/print-qrs", async (req, res) => {
 
-  const doc = new PDFDocument({ size: "A4", margin: 40 });
+  const PDFDocument = require("pdfkit");
+  const QRCode = require("qrcode");
+
+  const doc = new PDFDocument({
+    size: "A4",
+    margin: 0
+  });
 
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", "inline; filename=qrs.pdf");
 
   doc.pipe(res);
 
-  db.all("SELECT token FROM tokens", async (err, rows) => {
-
-    if (err || !rows) return doc.end();
-
-    let x = 50;
-    let y = 50;
-    let i = 0;
-
-    for (const r of rows) {
-
-      const url = `${BASE_URL}/?token=${r.token}`;
-      const qr = await QRCode.toDataURL(url);
-      const img = Buffer.from(qr.split(",")[1], "base64");
-
-      doc.image(img, x, y, { width: 80 });
-      doc.text(r.token, x, y + 85);
-
-      x += 100;
-      i++;
-
-      if (i % 5 === 0) {
-        x = 50;
-        y += 120;
-      }
-
-      if (i % 20 === 0) {
-        doc.addPage();
-        x = 50;
-        y = 50;
-      }
-    }
-
-    doc.end();
+  const rows = await new Promise((resolve, reject) => {
+    db.all("SELECT token FROM tokens", (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
   });
+
+  const mm = v => v * 2.83465;
+
+  // CONFIGURAZIONE STAMPA
+  const qrSize = mm(35);
+  const marginLeft = mm(15);
+  const marginTop = mm(15);
+
+  const gapX = mm(10);
+  const gapY = mm(15);
+
+  const cols = 4;
+  const rowsPerPage = 5;
+
+  let index = 0;
+
+  for (const r of rows) {
+
+    const col = index % cols;
+    const row = Math.floor(index / cols) % rowsPerPage;
+
+    const x = marginLeft + col * (qrSize + gapX);
+    const y = marginTop + row * (qrSize + gapY);
+
+    const url = `${BASE_URL}/?token=${r.token}`;
+
+    const qr = await QRCode.toDataURL(url, {
+      margin: 1,
+      width: 500
+    });
+
+    const img = Buffer.from(qr.split(",")[1], "base64");
+
+    doc.image(img, x, y, {
+      width: qrSize,
+      height: qrSize
+    });
+
+    doc.fontSize(8);
+    doc.text(r.token, x, y + qrSize + mm(2), {
+      width: qrSize,
+      align: "center"
+    });
+
+    index++;
+
+    if (index % (cols * rowsPerPage) === 0 &&
+        index < rows.length) {
+      doc.addPage();
+    }
+  }
+
+  doc.end();
 });
 
 // ========================= START
