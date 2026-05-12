@@ -300,14 +300,14 @@ app.get("/print-qrs", (req, res) => {
 
   doc.pipe(res);
 
+  const mm = v => v * 2.83465;
+
   db.all("SELECT token FROM tokens", async (err, rows) => {
 
     if (err || !rows) return doc.end();
 
     const pageW = doc.page.width;
     const pageH = doc.page.height;
-
-    const mm = v => v * 2.83465;
 
     const margin = mm(15);
     const qrSize = mm(35);
@@ -317,9 +317,24 @@ app.get("/print-qrs", (req, res) => {
     const cols = 4;
     const rowsPerPage = 5;
 
+    // 🔥 GENERAZIONE QR PARALLELA (FIX VERO DEL LAG)
+    const qrList = await Promise.all(
+      rows.map(r => {
+        const url = `${BASE_URL}/?token=${r.token}`;
+
+        return QRCode.toDataURL(url, {
+          margin: 1,
+          width: 300   // 🔥 più leggero e veloce
+        }).then(qr => ({
+          token: r.token,
+          img: Buffer.from(qr.split(",")[1], "base64")
+        }));
+      })
+    );
+
     let index = 0;
 
-    for (const r of rows) {
+    for (const item of qrList) {
 
       const col = index % cols;
       const row = Math.floor(index / cols) % rowsPerPage;
@@ -327,30 +342,20 @@ app.get("/print-qrs", (req, res) => {
       const x = margin + col * (qrSize + gapX);
       const y = margin + row * (qrSize + gapY);
 
-      const url = `${BASE_URL}/?token=${r.token}`;
-
-      const qr = await QRCode.toDataURL(url, {
-        margin: 1,
-        width: 600
-      });
-
-      const img = Buffer.from(qr.split(",")[1], "base64");
-
-      doc.image(img, x, y, {
+      doc.image(item.img, x, y, {
         width: qrSize,
         height: qrSize
       });
 
       doc.fontSize(7);
-      doc.text(r.token, x, y + qrSize + mm(2), {
+      doc.text(item.token, x, y + qrSize + mm(2), {
         width: qrSize,
         align: "center"
       });
 
       index++;
 
-      if (index % (cols * rowsPerPage) === 0 && index < rows.length) {
-
+      if (index % (cols * rowsPerPage) === 0 && index < qrList.length) {
         drawCropMarks(doc, pageW, pageH, margin);
         doc.addPage();
       }
