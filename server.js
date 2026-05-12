@@ -288,14 +288,57 @@ app.get("/debug-tokens", (req, res) => {
 });
 
 // ========================= QR PDF
-app.get("/print-qrs", async (req, res) => {
+const PDFDocument = require("pdfkit");
+const QRCode = require("qrcode");
 
-  const PDFDocument = require("pdfkit");
-  const QRCode = require("qrcode");
+// converte mm → punti PDF
+const mm = v => v * 2.83465;
+
+// crop marks
+function drawCropMarks(doc, pageWidth, pageHeight, margin) {
+
+  const len = mm(4); // lunghezza segni
+
+  doc.save();
+  doc.lineWidth(0.5);
+
+  // TOP LEFT
+  doc.moveTo(margin - len, margin)
+     .lineTo(margin, margin).stroke();
+
+  doc.moveTo(margin, margin - len)
+     .lineTo(margin, margin).stroke();
+
+  // TOP RIGHT
+  doc.moveTo(pageWidth - margin + len, margin)
+     .lineTo(pageWidth - margin, margin).stroke();
+
+  doc.moveTo(pageWidth - margin, margin - len)
+     .lineTo(pageWidth - margin, margin).stroke();
+
+  // BOTTOM LEFT
+  doc.moveTo(margin - len, pageHeight - margin)
+     .lineTo(margin, pageHeight - margin).stroke();
+
+  doc.moveTo(margin, pageHeight - margin + len)
+     .lineTo(margin, pageHeight - margin).stroke();
+
+  // BOTTOM RIGHT
+  doc.moveTo(pageWidth - margin + len, pageHeight - margin)
+     .lineTo(pageWidth - margin, pageHeight - margin).stroke();
+
+  doc.moveTo(pageWidth - margin, pageHeight - margin + len)
+     .lineTo(pageWidth - margin, pageHeight - margin).stroke();
+
+  doc.restore();
+}
+
+// ROUTE
+app.get("/print-qrs", (req, res) => {
 
   const doc = new PDFDocument({
     size: "A4",
-    margin: 0
+    margin: 0 // importante: gestiamo tutto noi
   });
 
   res.setHeader("Content-Type", "application/pdf");
@@ -303,65 +346,73 @@ app.get("/print-qrs", async (req, res) => {
 
   doc.pipe(res);
 
-  const rows = await new Promise((resolve, reject) => {
-    db.all("SELECT token FROM tokens", (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
-    });
-  });
+  db.all("SELECT token FROM tokens", async (err, rows) => {
 
-  const mm = v => v * 2.83465;
+    if (err || !rows) return doc.end();
 
-  // CONFIGURAZIONE STAMPA
-  const qrSize = mm(35);
-  const marginLeft = mm(15);
-  const marginTop = mm(15);
+    // ====== LAYOUT STAMPA ======
+    const pageW = doc.page.width;
+    const pageH = doc.page.height;
 
-  const gapX = mm(10);
-  const gapY = mm(15);
+    const margin = mm(15);
 
-  const cols = 4;
-  const rowsPerPage = 5;
+    const qrSize = mm(35);     // dimensione QR
+    const gapX = mm(8);
+    const gapY = mm(12);
 
-  let index = 0;
+    const cols = 4;
+    const rowsPerPage = 5;
 
-  for (const r of rows) {
+    let index = 0;
 
-    const col = index % cols;
-    const row = Math.floor(index / cols) % rowsPerPage;
+    for (const r of rows) {
 
-    const x = marginLeft + col * (qrSize + gapX);
-    const y = marginTop + row * (qrSize + gapY);
+      const col = index % cols;
+      const row = Math.floor(index / cols) % rowsPerPage;
 
-    const url = `${BASE_URL}/?token=${r.token}`;
+      // coordinate QR
+      const x = margin + col * (qrSize + gapX);
+      const y = margin + row * (qrSize + gapY);
 
-    const qr = await QRCode.toDataURL(url, {
-      margin: 1,
-      width: 500
-    });
+      const url = `${BASE_URL}/?token=${r.token}`;
 
-    const img = Buffer.from(qr.split(",")[1], "base64");
+      const qr = await QRCode.toDataURL(url, {
+        margin: 1,
+        width: 600 // alta qualità stampa
+      });
 
-    doc.image(img, x, y, {
-      width: qrSize,
-      height: qrSize
-    });
+      const img = Buffer.from(qr.split(",")[1], "base64");
 
-    doc.fontSize(8);
-    doc.text(r.token, x, y + qrSize + mm(2), {
-      width: qrSize,
-      align: "center"
-    });
+      // QR
+      doc.image(img, x, y, {
+        width: qrSize,
+        height: qrSize
+      });
 
-    index++;
+      // testo sotto QR
+      doc.fontSize(7);
+      doc.text(r.token, x, y + qrSize + mm(2), {
+        width: qrSize,
+        align: "center"
+      });
 
-    if (index % (cols * rowsPerPage) === 0 &&
-        index < rows.length) {
-      doc.addPage();
+      index++;
+
+      // nuova pagina
+      if (index % (cols * rowsPerPage) === 0 && index < rows.length) {
+
+        // crop marks pagina corrente
+        drawCropMarks(doc, pageW, pageH, margin);
+
+        doc.addPage();
+      }
     }
-  }
 
-  doc.end();
+    // crop marks ultima pagina
+    drawCropMarks(doc, pageW, pageH, margin);
+
+    doc.end();
+  });
 });
 
 // ========================= START
