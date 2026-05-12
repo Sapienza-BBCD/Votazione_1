@@ -318,7 +318,10 @@ app.get("/print-qrs", (req, res) => {
 
       // Generazione QR
       const url = `${BASE_URL}/?token=${rows[i].token}`;
-      const qr = await QRCode.toDataURL(url);
+      const qr = await QRCode.toDataURL(url, {
+        margin: 1,
+        width: 300
+      });
       const img = Buffer.from(qr.split(",")[1], "base64");
 
       // 1. Stampa QR Code (centrato nella cella)
