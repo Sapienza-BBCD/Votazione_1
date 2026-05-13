@@ -9,25 +9,24 @@ const ExcelJS = require("exceljs");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ========================= CONFIG
+// ================= CONFIG
 const BASE_URL = process.env.BASE_URL || "https://votazione-1.onrender.com";
 const PARTICIPANTI = 350;
 const MAX_VOTES = 2;
 
-// ========================= STATE
+// ================= STATE
 let votingState = "pre";
 
-// ========================= MIDDLEWARE
+// ================= MIDDLEWARE
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-// ========================= DB
+// ================= DB
 const db = new sqlite3.Database("votes.db");
 
-// ========================= INIT DB
+// ================= INIT
 db.serialize(() => {
-
   db.run(`
     CREATE TABLE IF NOT EXISTS votes(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,266 +54,132 @@ db.serialize(() => {
   stmt.finalize();
 });
 
-// ========================= HELPERS
-function getDisciplina(percorso) {
-  return (percorso || "").split(" - ")[0].trim();
-}
+// ================= HELPERS
+const disciplina = (p) => p.split(" - ")[0].trim();
 
-// ========================= PAGES
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "vote.html"));
-});
+// ================= ROUTES BASIC
+app.get("/", (_, res) => res.sendFile(path.join(__dirname, "public/vote.html")));
+app.get("/results-view", (_, res) => res.sendFile(path.join(__dirname, "public/results-view.html")));
 
-app.get("/results-view", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "results-view.html"));
-});
+app.get("/status", (_, res) => res.json({ stato: votingState }));
 
-// ========================= STATUS SYSTEM
-app.get("/status", (req, res) => {
-  res.json({ stato: votingState });
-});
-
-app.get("/open-vote", (req, res) => {
+app.get("/open-vote", (_, res) => {
   votingState = "open";
   res.json({ ok: true });
 });
 
-app.get("/close-vote", (req, res) => {
+app.get("/close-vote", (_, res) => {
   votingState = "closed";
   res.json({ ok: true });
 });
 
-app.get("/reset-votes", (req, res) => {
+app.get("/reset-votes", (_, res) => {
   votingState = "pre";
-  db.run("DELETE FROM votes", () => res.json({ ok: true }));
+  db.run("DELETE FROM votes");
+  res.json({ ok: true });
 });
 
-// ========================= TOKEN STATUS
-app.get("/vote-status/:token", (req, res) => {
-
-  db.get(
-    "SELECT COUNT(*) AS used FROM votes WHERE token=?",
-    [req.params.token],
-    (err, row) => {
-
-      if (err) return res.json({ error: "server error" });
-
-      const used = row?.used || 0;
-
-      res.json({
-        used,
-        remaining: Math.max(0, MAX_VOTES - used),
-        max: MAX_VOTES
-      });
-    }
-  );
-});
-
-// ========================= VOTE
+// ================= VOTE
 app.post("/vote", (req, res) => {
-
   const { token, id_progetto, percorso, scuola, titolo } = req.body;
 
   if (!token) return res.json({ error: "QR non valido" });
-  if (votingState !== "open") return res.json({ error: "Votazione non attiva" });
+  if (votingState !== "open") return res.json({ error: "Votazione chiusa" });
 
   db.get("SELECT token FROM tokens WHERE token=?", [token], (err, row) => {
-
     if (!row) return res.json({ error: "Token non valido" });
 
     db.get(
-      "SELECT COUNT(*) AS count FROM votes WHERE token=?",
+      "SELECT COUNT(*) AS c FROM votes WHERE token=?",
       [token],
-      (err2, countRow) => {
+      (err, c) => {
+        if (c.c >= MAX_VOTES) return res.json({ error: "Limite voti" });
 
-        if ((countRow?.count || 0) >= MAX_VOTES) {
-          return res.json({ error: "Hai esaurito i voti" });
-        }
-
-        db.all(
-          "SELECT percorso FROM votes WHERE token=?",
-          [token],
-          (err3, rows) => {
-
-            const nuova = getDisciplina(percorso);
-            const gia = (rows || []).map(r => getDisciplina(r.percorso));
-
-            if (gia.includes(nuova)) {
-              return res.json({ error: "Hai già votato questa disciplina" });
-            }
-
-            db.run(
-              "INSERT INTO votes(id_progetto,token,percorso,scuola,titolo) VALUES(?,?,?,?,?)",
-              [id_progetto, token, percorso, scuola, titolo],
-              (err4) => {
-
-                if (err4) return res.json({ error: "Errore salvataggio" });
-
-                res.json({ success: true });
-              }
-            );
-          }
+        db.run(
+          "INSERT INTO votes(token,id_progetto,percorso,scuola,titolo) VALUES(?,?,?,?,?)",
+          [token, id_progetto, percorso, scuola, titolo],
+          () => res.json({ success: true })
         );
       }
     );
   });
 });
 
-// ========================= RESULTS
-app.get("/results-data", (req, res) => {
-
-  db.all(`
-    SELECT
-      id_progetto,
-      percorso,
-      scuola,
-      titolo,
-      COUNT(*) as votes
-    FROM votes
-    GROUP BY id_progetto, percorso, scuola, titolo
-    ORDER BY votes DESC
-  `, (err, rows) => {
-
-    if (err) return res.json({ error: err.message });
-
-    res.json({ risultati: rows || [] });
-  });
+// ================= RESULTS
+app.get("/results-data", (_, res) => {
+  db.all(
+    `SELECT id_progetto, percorso, scuola, titolo, COUNT(*) as votes
+     FROM votes
+     GROUP BY id_progetto, percorso, scuola, titolo
+     ORDER BY votes DESC`,
+    (_, rows) => res.json({ risultati: rows || [] })
+  );
 });
 
-// ========================= CLASSIFICA DISCIPLINE
-app.get("/api/classifica-discipline", (req, res) => {
-
-  db.all(`
-    SELECT
-      id_progetto,
-      percorso,
-      scuola,
-      titolo,
-      COUNT(*) as votes
-    FROM votes
-    GROUP BY id_progetto, percorso, scuola, titolo
-    ORDER BY votes DESC
-  `, (err, rows) => {
-
-    if (err) return res.json({ error: err.message });
-
-    const grouped = {};
-
-    rows.forEach(r => {
-
-      const disciplina = getDisciplina(r.percorso);
-
-      if (!grouped[disciplina]) grouped[disciplina] = [];
-
-      grouped[disciplina].push({
-        id: r.id_progetto,
-        scuola: r.scuola,
-        titolo: r.titolo,
-        voti: r.votes,
-        percorso: r.percorso
-      });
-    });
-
-    res.json(
-      Object.keys(grouped).map(disciplina => ({
-        disciplina,
-        progetti: grouped[disciplina]
-      }))
-    );
-  });
-});
-
-// ========================= QR PDF
-app.get("/print-qrs", (req, res) => {
-
-  const doc = new PDFDocument({ size: "A4", margin: 0 });
+// ================= QR PDF (FAST + STABLE)
+app.get("/print-qrs", async (_, res) => {
+  const doc = new PDFDocument({ size: "A4", margin: 20 });
 
   res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", "inline; filename=qrs.pdf");
-
   doc.pipe(res);
 
-  db.all("SELECT token FROM tokens ORDER BY token ASC", async (err, rows) => {
-
-    if (err || !rows) return doc.end();
-
+  db.all("SELECT token FROM tokens ORDER BY token ASC", async (_, rows) => {
     const cols = 4;
-    const rowsPerPage = 6;
-
-    const cellW = 130;
-    const cellH = 120;
-    const qrSize = 80;
+    const size = 120;
 
     for (let i = 0; i < rows.length; i++) {
+      const t = rows[i].token;
 
-      if (i > 0 && i % (cols * rowsPerPage) === 0) {
-        doc.addPage();
-      }
-
-      const col = i % cols;
-      const row = Math.floor(i / cols) % rowsPerPage;
-
-      const x = 45 + col * cellW;
-      const y = 50 + row * cellH;
-
-      const url = `${BASE_URL}/?token=${rows[i].token}`;
-      const qr = await QRCode.toDataURL(url, { width: 300 });
-
+      const qr = await QRCode.toDataURL(`${BASE_URL}/?token=${t}`);
       const img = Buffer.from(qr.split(",")[1], "base64");
 
-      doc.image(img, x + 25, y + 10, { width: qrSize });
+      const x = 50 + (i % cols) * size;
+      const y = 50 + Math.floor(i / cols) * size;
 
-      doc.fontSize(8)
-         .text(rows[i].token, x, y + 95, {
-           width: cellW,
-           align: "center"
-         });
-
-      // crocini
-      doc.strokeColor("#ccc").lineWidth(0.3);
-
-      doc.moveTo(x, y).lineTo(x + 10, y).stroke();
-      doc.moveTo(x, y).lineTo(x, y + 10).stroke();
-
-      doc.moveTo(x + cellW, y + cellH).lineTo(x + cellW - 10, y + cellH).stroke();
-      doc.moveTo(x + cellW, y + cellH).lineTo(x + cellW, y + cellH - 10).stroke();
+      doc.image(img, x, y, { width: 80 });
+      doc.fontSize(8).text(t, x, y + 85, { width: 80, align: "center" });
     }
 
     doc.end();
   });
 });
 
-// ========================= EXPORT EXCEL
-app.get("/export-excel", async (req, res) => {
-
+// ================= EXCEL EXPORT (QR STATUS)
+app.get("/export-excel", async (_, res) => {
   const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Tokens");
 
-  const sheet = workbook.addWorksheet("Statistiche");
+  sheet.columns = [
+    { header: "Token", key: "token", width: 20 },
+    { header: "Voti", key: "votes", width: 10 }
+  ];
 
-  const totalVotes = await new Promise(r =>
-    db.get("SELECT COUNT(*) AS c FROM votes", (_, row) => r(row?.c || 0))
+  db.all(
+    `SELECT t.token, COUNT(v.id) as votes
+     FROM tokens t
+     LEFT JOIN votes v ON t.token=v.token
+     GROUP BY t.token
+     ORDER BY t.token ASC`,
+    async (_, rows) => {
+      rows.forEach(r => sheet.addRow(r));
+
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+
+      res.setHeader(
+        "Content-Disposition",
+        "attachment; filename=voti.xlsx"
+      );
+
+      await workbook.xlsx.write(res);
+      res.end();
+    }
   );
-
-  const usedQR = await new Promise(r =>
-    db.get("SELECT COUNT(DISTINCT token) AS c FROM votes", (_, row) => r(row?.c || 0))
-  );
-
-  sheet.addRows([
-    ["Totale voti", totalVotes],
-    ["QR usati", usedQR],
-    ["QR non usati", PARTICIPANTI - usedQR]
-  ]);
-
-  res.setHeader(
-    "Content-Type",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-  );
-
-  await workbook.xlsx.write(res);
-  res.end();
 });
 
-// ========================= START
+// ================= START
 app.listen(PORT, () => {
   console.log("Server attivo su porta", PORT);
 });
