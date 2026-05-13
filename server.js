@@ -117,33 +117,89 @@ app.get("/results-data", (_, res) => {
 });
 
 // ================= QR PDF (FAST + STABLE)
-app.get("/print-qrs", async (_, res) => {
-  const doc = new PDFDocument({ size: "A4", margin: 20 });
+app.get("/print-qrs", (req, res) => {
+  const doc = new PDFDocument({ size: "A4", margin: 0 });
 
   res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", "inline; filename=qrs.pdf");
+
   doc.pipe(res);
 
-  db.all("SELECT token FROM tokens ORDER BY token ASC", async (_, rows) => {
+  db.all("SELECT token FROM tokens ORDER BY token ASC", async (err, rows) => {
+    if (err || !rows) return doc.end();
+
+    const mm = v => v * 2.83465;
+
+    const margin = mm(12);
     const cols = 4;
-    const size = 120;
+    const rowsPerPage = 5;
+
+    const cellW = mm(45);
+    const cellH = mm(50);
+    const qrSize = mm(32);
+
+    const makeQR = (url) =>
+      QRCode.toDataURL(url, { width: 250, margin: 1 });
 
     for (let i = 0; i < rows.length; i++) {
+      if (i > 0 && i % (cols * rowsPerPage) === 0) {
+        drawCropMarks(doc, doc.page.width, doc.page.height, margin);
+        doc.addPage();
+      }
+
       const t = rows[i].token;
 
-      const qr = await QRCode.toDataURL(`${BASE_URL}/?token=${t}`);
+      const col = i % cols;
+      const row = Math.floor(i / cols) % rowsPerPage;
+
+      const x = margin + col * cellW;
+      const y = margin + row * cellH;
+
+      const qr = await makeQR(`${BASE_URL}/?token=${t}`);
       const img = Buffer.from(qr.split(",")[1], "base64");
 
-      const x = 50 + (i % cols) * size;
-      const y = 50 + Math.floor(i / cols) * size;
+      doc.image(img, x + (cellW - qrSize) / 2, y + 5, {
+        width: qrSize
+      });
 
-      doc.image(img, x, y, { width: 80 });
-      doc.fontSize(8).text(t, x, y + 85, { width: 80, align: "center" });
+      doc.fontSize(8).text(t, x, y + qrSize + 8, {
+        width: cellW,
+        align: "center"
+      });
+
+      doc.rect(x, y, cellW, cellH).strokeOpacity(0.15).stroke();
     }
+
+    drawCropMarks(doc, doc.page.width, doc.page.height, margin);
 
     doc.end();
   });
 });
 
+function drawCropMarks(doc, pageW, pageH, margin) {
+  const len = 10;
+
+  doc.save();
+  doc.lineWidth(0.5);
+
+  // top left
+  doc.moveTo(margin - len, margin).lineTo(margin, margin).stroke();
+  doc.moveTo(margin, margin - len).lineTo(margin, margin).stroke();
+
+  // top right
+  doc.moveTo(pageW - margin + len, margin).lineTo(pageW - margin, margin).stroke();
+  doc.moveTo(pageW - margin, margin - len).lineTo(pageW - margin, margin).stroke();
+
+  // bottom left
+  doc.moveTo(margin - len, pageH - margin).lineTo(margin, pageH - margin).stroke();
+  doc.moveTo(margin, pageH - margin + len).lineTo(margin, pageH - margin).stroke();
+
+  // bottom right
+  doc.moveTo(pageW - margin + len, pageH - margin).lineTo(pageW - margin, pageH - margin).stroke();
+  doc.moveTo(pageW - margin, pageH - margin + len).lineTo(pageW - margin, pageH - margin).stroke();
+
+  doc.restore();
+}
 // ================= EXCEL EXPORT (QR STATUS)
 app.get("/export-excel", async (_, res) => {
   const workbook = new ExcelJS.Workbook();
