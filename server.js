@@ -382,36 +382,124 @@ app.get("/reset-tokens", (req, res) => {
 // ================= EXCEL EXPORT (QR STATUS)
 app.get("/export-excel", async (_, res) => {
   const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet("Tokens");
 
-  sheet.columns = [
-    { header: "Token", key: "token", width: 20 },
+  // =========================
+  // SHEET 1: VOTI PER PROGETTO
+  // =========================
+  const projectsSheet = workbook.addWorksheet("Risultati");
+
+  projectsSheet.columns = [
+    { header: "ID Progetto", key: "id_progetto", width: 15 },
+    { header: "Titolo", key: "titolo", width: 30 },
+    { header: "Scuola", key: "scuola", width: 25 },
+    { header: "Percorso", key: "percorso", width: 30 },
     { header: "Voti", key: "votes", width: 10 }
   ];
 
-  db.all(
-    `SELECT t.token, COUNT(v.id) as votes
-     FROM tokens t
-     LEFT JOIN votes v ON t.token=v.token
-     GROUP BY t.token
-     ORDER BY t.token ASC`,
-    async (_, rows) => {
-      rows.forEach(r => sheet.addRow(r));
+  const results = await new Promise((resolve) => {
+    db.all(`
+      SELECT
+        id_progetto,
+        titolo,
+        scuola,
+        percorso,
+        COUNT(*) as votes
+      FROM votes
+      GROUP BY id_progetto, titolo, scuola, percorso
+      ORDER BY votes DESC
+    `, (_, rows) => resolve(rows || []));
+  });
 
-      res.setHeader(
-        "Content-Type",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-      );
+  results.forEach(r => projectsSheet.addRow(r));
 
-      res.setHeader(
-        "Content-Disposition",
-        "attachment; filename=voti.xlsx"
-      );
+  // =========================
+  // SHEET 2: TOKEN STATUS
+  // =========================
+  const tokenSheet = workbook.addWorksheet("Token");
 
-      await workbook.xlsx.write(res);
-      res.end();
-    }
+  tokenSheet.columns = [
+    { header: "Token", key: "token", width: 20 },
+    { header: "Voti effettuati", key: "votes", width: 18 },
+    { header: "Usato", key: "used", width: 10 }
+  ];
+
+  const tokens = await new Promise((resolve) => {
+    db.all(`
+      SELECT
+        t.token,
+        COUNT(v.id) as votes
+      FROM tokens t
+      LEFT JOIN votes v ON t.token = v.token
+      GROUP BY t.token
+      ORDER BY t.token ASC
+    `, (_, rows) => resolve(rows || []));
+  });
+
+  tokens.forEach(t => {
+    tokenSheet.addRow({
+      token: t.token,
+      votes: t.votes,
+      used: t.votes > 0 ? "SI" : "NO"
+    });
+  });
+
+  // =========================
+  // SHEET 3: DISCIPLINE (MATrice analisi)
+  // =========================
+  const disciplineSheet = workbook.addWorksheet("Discipline");
+
+  disciplineSheet.columns = [
+    { header: "Disciplina", key: "disciplina", width: 25 },
+    { header: "Voti totali", key: "votes", width: 15 }
+  ];
+
+  const discipline = await new Promise((resolve) => {
+    db.all(`
+      SELECT percorso, COUNT(*) as votes
+      FROM votes
+      GROUP BY percorso
+      ORDER BY votes DESC
+    `, (_, rows) => resolve(rows || []));
+  });
+
+  const grouped = {};
+
+  discipline.forEach(r => {
+    const d = r.percorso.split(" - ")[0];
+    grouped[d] = (grouped[d] || 0) + r.votes;
+  });
+
+  Object.entries(grouped).forEach(([disciplina, votes]) => {
+    disciplineSheet.addRow({ disciplina, votes });
+  });
+
+  // =========================
+  // STILE BASE
+  // =========================
+  workbook.eachSheet(sheet => {
+    sheet.getRow(1).font = { bold: true };
+    sheet.getRow(1).fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFE8F0FE" }
+    };
+  });
+
+  // =========================
+  // DOWNLOAD
+  // =========================
+  res.setHeader(
+    "Content-Type",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
   );
+
+  res.setHeader(
+    "Content-Disposition",
+    "attachment; filename=dashboard_votazione.xlsx"
+  );
+
+  await workbook.xlsx.write(res);
+  res.end();
 });
 
 // ================= START
